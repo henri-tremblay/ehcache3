@@ -19,6 +19,7 @@ import org.ehcache.Cache;
 import org.ehcache.Status;
 import org.ehcache.config.CacheConfiguration;
 import org.ehcache.core.events.CacheManagerListener;
+import org.ehcache.core.spi.service.StatisticsService;
 import org.ehcache.core.spi.store.InternalCacheManager;
 import org.ehcache.core.spi.service.CacheManagerProviderService;
 import org.ehcache.core.spi.service.ExecutionService;
@@ -47,7 +48,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.ehcache.impl.internal.executor.ExecutorUtil.shutdownNow;
 
-@ServiceDependencies({CacheManagerProviderService.class, ExecutionService.class})
+@ServiceDependencies({CacheManagerProviderService.class, ExecutionService.class, StatisticsService.class})
 public class DefaultManagementRegistryService extends DefaultManagementRegistry implements ManagementRegistryService, CacheManagerListener {
 
   private final ManagementRegistryServiceConfiguration configuration;
@@ -69,9 +70,11 @@ public class DefaultManagementRegistryService extends DefaultManagementRegistry 
     this.statisticsExecutor = serviceProvider.getService(ExecutionService.class).getScheduledExecutor(getConfiguration().getStatisticsExecutorAlias());
     this.cacheManager = serviceProvider.getService(CacheManagerProviderService.class).getCacheManager();
 
+    StatisticsService statisticsService = serviceProvider.getService(StatisticsService.class);
+
     // initialize management capabilities (stats, action calls, etc)
     addManagementProvider(new EhcacheActionProvider(getConfiguration()));
-    addManagementProvider(new EhcacheStatisticsProvider(getConfiguration(), statisticsExecutor));
+    addManagementProvider(new EhcacheStatisticsProvider(getConfiguration(), statisticsExecutor, statisticsService));
     addManagementProvider(new EhcacheStatisticCollectorProvider(getConfiguration()));
     addManagementProvider(new EhcacheSettingsProvider(getConfiguration(), cacheManager));
 

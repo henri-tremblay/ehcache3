@@ -15,6 +15,7 @@
  */
 package org.ehcache.management.providers.statistics;
 
+import org.ehcache.core.spi.service.StatisticsService;
 import org.ehcache.management.ManagementRegistryServiceConfiguration;
 import org.ehcache.management.config.StatisticsProviderConfiguration;
 import org.ehcache.management.providers.CacheBinding;
@@ -51,16 +52,19 @@ public class EhcacheStatisticsProvider extends CacheBindingManagementProvider {
 
   private final StatisticsProviderConfiguration statisticsProviderConfiguration;
   private final ScheduledExecutorService executor;
+  private final StatisticsService statisticsService;
 
-  public EhcacheStatisticsProvider(ManagementRegistryServiceConfiguration configuration, ScheduledExecutorService executor) {
+  public EhcacheStatisticsProvider(ManagementRegistryServiceConfiguration configuration, ScheduledExecutorService executor,
+                                   StatisticsService statisticsService) {
     super(configuration);
     this.statisticsProviderConfiguration = configuration.getConfigurationFor(EhcacheStatisticsProvider.class);
     this.executor = executor;
+    this.statisticsService = statisticsService;
   }
 
   @Override
   protected ExposedCacheBinding wrap(CacheBinding cacheBinding) {
-    return new StandardEhcacheStatistics(registryConfiguration, cacheBinding, statisticsProviderConfiguration, executor);
+    return new StandardEhcacheStatistics(registryConfiguration, cacheBinding, statisticsProviderConfiguration, executor, statisticsService);
   }
 
   @Override

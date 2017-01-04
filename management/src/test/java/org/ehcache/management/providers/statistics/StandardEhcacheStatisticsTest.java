@@ -67,34 +67,22 @@ public class StandardEhcacheStatisticsTest {
 
       Cache<Long, String> aCache = cacheManager.getCache("cCache", Long.class, String.class);
       aCache.put(1L, "one");
-      Assert.assertTrue(aCache.containsKey(1L));
-      aCache.clear();
-      Assert.assertFalse(aCache.iterator().hasNext());
-
-      aCache.put(1L, "one");
-      Assert.assertTrue(aCache.containsKey(1L));
-      aCache.clear();
-      Assert.assertFalse(aCache.iterator().hasNext());
-
-      Thread.sleep(1000);
+      aCache.get(1L);
 
       Context context = StatsUtil.createContext(managementRegistry);
 
-      CounterHistory cache_Clear_Count;
-      do {
-        ContextualStatistics clearCounter = managementRegistry.withCapability("StatisticsCapability")
-          .queryStatistics(Arrays.asList("Cache:ClearCount"))
-          .on(context)
-          .build()
-          .execute()
-          .getSingleResult();
+      ContextualStatistics counter = managementRegistry.withCapability("StatisticsCapability")
+        .queryStatistics(Arrays.asList("Cache:HitCount"))
+        .on(context)
+        .build()
+        .execute()
+        .getSingleResult();
 
-        assertThat(clearCounter.size(), Matchers.is(1));
-        cache_Clear_Count = clearCounter.getStatistic(CounterHistory.class, "Cache:ClearCount");
-      } while(!Thread.currentThread().isInterrupted() && !StatsUtil.isHistoryReady(cache_Clear_Count, 0L));
+      assertThat(counter.size(), Matchers.is(1));
+      CounterHistory count = counter.getStatistic(CounterHistory.class, "Cache:HitCount");
+      int mostRecentIndex = count.getValue().length - 1;
 
-      int mostRecentIndex = cache_Clear_Count.getValue().length - 1;
-      assertThat(cache_Clear_Count.getValue()[mostRecentIndex].getValue(), Matchers.equalTo(2L));
+      assertThat(count.getValue()[mostRecentIndex].getValue(), Matchers.equalTo(1L));
     }
     finally {
       if(cacheManager != null) {

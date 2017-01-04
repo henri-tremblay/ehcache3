@@ -45,13 +45,23 @@ public class DefaultStatisticsService implements StatisticsService, CacheManager
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultStatisticsService.class);
 
   private final ConcurrentMap<String, CacheStatistics> cacheStatistics = new ConcurrentHashMap<String, CacheStatistics>();
+  private final ConcurrentMap<String, TierStatistics> tierStatistics = new ConcurrentHashMap<String, TierStatistics>();
+
   private volatile InternalCacheManager cacheManager;
   private volatile boolean started = false;
 
-  private CacheStatistics getStatistics(String cacheName) {
+  private CacheStatistics getCacheStatistics(String cacheName) {
     CacheStatistics stats = cacheStatistics.get(cacheName);
     if (stats == null) {
       throw new IllegalArgumentException("Unknown cache: " + cacheName);
+    }
+    return stats;
+  }
+
+  private TierStatistics getTierStatistics(String tierName) {
+    TierStatistics stats = tierStatistics.get(tierName);
+    if (stats == null) {
+      throw new IllegalArgumentException("Unknown tier: " + tierName);
     }
     return stats;
   }
@@ -118,61 +128,96 @@ public class DefaultStatisticsService implements StatisticsService, CacheManager
 
   @Override
   public void clear(String cacheName) {
-    getStatistics(cacheName).clear();
+    getCacheStatistics(cacheName).clear();
   }
 
   @Override
   public long getCacheHits(String cacheName) {
-    return getStatistics(cacheName).getCacheHits();
+    return getCacheStatistics(cacheName).getCacheHits();
   }
 
   @Override
   public float getCacheHitPercentage(String cacheName) {
-    return getStatistics(cacheName).getCacheHitPercentage();
+    return getCacheStatistics(cacheName).getCacheHitPercentage();
   }
 
   @Override
   public long getCacheMisses(String cacheName) {
-    return getStatistics(cacheName).getCacheMisses();
+    return getCacheStatistics(cacheName).getCacheMisses();
   }
 
   @Override
   public float getCacheMissPercentage(String cacheName) {
-    return getStatistics(cacheName).getCacheMissPercentage();
+    return getCacheStatistics(cacheName).getCacheMissPercentage();
   }
 
   @Override
   public long getCacheGets(String cacheName) {
-    return getStatistics(cacheName).getCacheGets();
+    return getCacheStatistics(cacheName).getCacheGets();
   }
 
   @Override
   public long getCachePuts(String cacheName) {
-    return getStatistics(cacheName).getCachePuts();
+    return getCacheStatistics(cacheName).getCachePuts();
   }
 
   @Override
   public long getCacheRemovals(String cacheName) {
-    return getStatistics(cacheName).getCacheRemovals();
+    return getCacheStatistics(cacheName).getCacheRemovals();
   }
 
   @Override
   public long getCacheEvictions(String cacheName) {
-    return getStatistics(cacheName).getCacheEvictions();
+    return getCacheStatistics(cacheName).getCacheEvictions();
   }
 
   @Override
-  public float getAverageGetTime(String cacheName) {
-    return getStatistics(cacheName).getAverageGetTime ();
+  public float getCacheAverageGetTime(String cacheName) {
+    return getCacheStatistics(cacheName).getCacheAverageGetTime();
   }
 
   @Override
-  public float getAveragePutTime(String cacheName) {
-    return getStatistics(cacheName).getAveragePutTime();
+  public float getCacheAveragePutTime(String cacheName) {
+    return getCacheStatistics(cacheName).getCacheAveragePutTime();
   }
 
   @Override
-  public float getAverageRemoveTime(String cacheName) {
-    return getStatistics(cacheName).getAverageRemoveTime();
+  public float getCacheAverageRemoveTime(String cacheName) {
+    return getCacheStatistics(cacheName).getCacheAverageRemoveTime();
+  }
+
+  @Override
+  public long getTierHits(String tierName) {
+    return 0;
+  }
+
+  @Override
+  public long getTierMisses(String tierName) {
+    return 0;
+  }
+
+  @Override
+  public long getTierEvictions(String tierName) {
+    return 0;
+  }
+
+  @Override
+  public long getTierMappings(String tierName) {
+    return 0;
+  }
+
+  @Override
+  public long getTierMaxMappings(String tierName) {
+    return 0;
+  }
+
+  @Override
+  public long getTierAllocatedByteSize(String tierName) {
+    return getTierStatistics(tierName).getAllocatedByteSize();
+  }
+
+  @Override
+  public long getTierOccupiedByteSize(String tierName) {
+    return 0;
   }
 }

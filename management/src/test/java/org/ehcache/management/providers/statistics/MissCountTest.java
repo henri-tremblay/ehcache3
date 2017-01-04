@@ -106,8 +106,6 @@ public class MissCountTest {
 
       Context context = StatsUtil.createContext(managementRegistry);
 
-      StatsUtil.triggerStatComputation(managementRegistry, context, "Cache:MissCount", "OnHeap:MissCount", "OffHeap:MissCount", "Disk:MissCount");
-
       Cache<Long, String> cache = cacheManager.getCache("myCache", Long.class, String.class);
 
       cache.put(1L, "1");//put in lowest tier

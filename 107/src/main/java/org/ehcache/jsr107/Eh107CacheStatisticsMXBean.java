@@ -78,17 +78,17 @@ class Eh107CacheStatisticsMXBean extends Eh107MXBean implements javax.cache.mana
 
   @Override
   public float getAverageGetTime() {
-    return statisticsService.getAverageGetTime(cacheName);
+    return statisticsService.getCacheAverageGetTime(cacheName);
   }
 
   @Override
   public float getAveragePutTime() {
-    return statisticsService.getAveragePutTime(cacheName);
+    return statisticsService.getCacheAveragePutTime(cacheName);
   }
 
   @Override
   public float getAverageRemoveTime() {
-    return statisticsService.getAverageRemoveTime(cacheName);
+    return statisticsService.getCacheAverageRemoveTime(cacheName);
   }
 
 }

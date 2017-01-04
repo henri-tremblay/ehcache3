@@ -22,6 +22,7 @@ import org.ehcache.Status;
 import org.ehcache.config.builders.CacheConfigurationBuilder;
 import org.ehcache.config.builders.CacheManagerBuilder;
 import org.ehcache.config.builders.ResourcePoolsBuilder;
+import org.ehcache.spi.test.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,6 +55,13 @@ public class DefaultStatisticsServiceTest {
       .using(service)
       .withCache(CACHE, cacheConfiguration)
       .build();
+  }
+
+  @After
+  public void after() {
+    if(cacheManager != null) {
+      cacheManager.close();
+    }
   }
 
   @Test

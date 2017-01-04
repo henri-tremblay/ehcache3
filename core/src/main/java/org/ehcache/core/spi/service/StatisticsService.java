@@ -39,13 +39,35 @@ public interface StatisticsService extends Service {
 
   long getCachePuts(String cacheName);
 
+//  long getCacheUpdates(String cacheName);
+
   long getCacheRemovals(String cacheName);
 
   long getCacheEvictions(String cacheName);
 
-  float getAverageGetTime(String cacheName);
+//  long getCacheExpiry(String cacheName);
 
-  float getAveragePutTime(String cacheName);
+  float getCacheAverageGetTime(String cacheName);
 
-  float getAverageRemoveTime(String cacheName);
+  float getCacheAveragePutTime(String cacheName);
+
+  float getCacheAverageRemoveTime(String cacheName);
+
+//  long getCacheSize(String cacheName);
+
+//  long getCacheCount(String cacheName);
+
+  long getTierHits(String tierName);
+
+  long getTierMisses(String tierName);
+
+  long getTierEvictions(String tierName);
+
+  long getTierMappings(String tierName);
+
+  long getTierMaxMappings(String tierName);
+
+  long getTierAllocatedByteSize(String tierName);
+
+  long getTierOccupiedByteSize(String tierName);
 }

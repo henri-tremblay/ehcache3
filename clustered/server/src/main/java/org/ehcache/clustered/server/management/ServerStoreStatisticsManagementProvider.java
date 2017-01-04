@@ -46,18 +46,6 @@ class ServerStoreStatisticsManagementProvider extends AbstractStatisticsManageme
     ServerStoreExposedStatistics(Context context, ServerStoreBinding binding, StatisticsRegistry statisticsRegistry) {
       super(context, binding, statisticsRegistry);
 
-      statisticsRegistry.registerSize("AllocatedMemory", descriptor("allocatedMemory", tags("tier", "Store")));
-      statisticsRegistry.registerSize("DataAllocatedMemory", descriptor("dataAllocatedMemory", tags("tier", "Store")));
-      statisticsRegistry.registerSize("OccupiedMemory", descriptor("occupiedMemory", tags("tier", "Store")));
-      statisticsRegistry.registerSize("DataOccupiedMemory", descriptor("dataOccupiedMemory", tags("tier", "Store")));
-      statisticsRegistry.registerCounter("Entries", descriptor("entries", tags("tier", "Store")));
-      statisticsRegistry.registerCounter("UsedSlotCount", descriptor("usedSlotCount", tags("tier", "Store")));
-      statisticsRegistry.registerSize("DataVitalMemory", descriptor("dataVitalMemory", tags("tier", "Store")));
-      statisticsRegistry.registerSize("VitalMemory", descriptor("vitalMemory", tags("tier", "Store")));
-      statisticsRegistry.registerSize("ReprobeLength", descriptor("reprobeLength", tags("tier", "Store")));
-      statisticsRegistry.registerCounter("RemovedSlotCount", descriptor("removedSlotCount", tags("tier", "Store")));
-      statisticsRegistry.registerSize("DataSize", descriptor("dataSize", tags("tier", "Store")));
-      statisticsRegistry.registerSize("TableCapacity", descriptor("tableCapacity", tags("tier", "Store")));
     }
 
     @Override

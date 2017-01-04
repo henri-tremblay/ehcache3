@@ -118,8 +118,6 @@ public class HitCountTest {
 
       Context context = StatsUtil.createContext(managementRegistry);
 
-      StatsUtil.triggerStatComputation(managementRegistry, context, "Cache:HitCount", "OnHeap:HitCount", "OffHeap:HitCount", "Disk:HitCount");
-
       Cache<Long, String> cache = cacheManager.getCache("myCache", Long.class, String.class);
 
       cache.put(1L, "1");//put in lowest tier

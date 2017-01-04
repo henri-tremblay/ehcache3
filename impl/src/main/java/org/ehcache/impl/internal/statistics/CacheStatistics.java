@@ -23,6 +23,7 @@ import org.ehcache.core.statistics.CacheOperationOutcomes;
 import org.ehcache.core.statistics.StoreOperationOutcomes;
 import org.terracotta.context.ContextManager;
 import org.terracotta.context.TreeNode;
+import org.terracotta.context.query.Matcher;
 import org.terracotta.context.query.Matchers;
 import org.terracotta.context.query.Query;
 import org.terracotta.statistics.OperationStatistic;
@@ -33,6 +34,7 @@ import org.terracotta.statistics.observer.ChainedOperationObserver;
 
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -65,8 +67,10 @@ class CacheStatistics {
   private final LatencyMonitor<CacheOperationOutcomes.PutOutcome> averagePutTime;
   private final LatencyMonitor<CacheOperationOutcomes.RemoveOutcome> averageRemoveTime;
 
+  private final Map<String, TierStatistics> tierStatistics;
+
   public CacheStatistics(InternalCache<?, ?> cache) {
-    this.bulkMethodEntries = cache.getBulkMethodEntries();
+    bulkMethodEntries = cache.getBulkMethodEntries();
 
     get = findCacheStatistic(cache, CacheOperationOutcomes.GetOutcome.class, "get");
     put = findCacheStatistic(cache, CacheOperationOutcomes.PutOutcome.class, "put");
@@ -80,8 +84,14 @@ class CacheStatistics {
     get.addDerivedStatistic(averageGetTime);
     averagePutTime = new LatencyMonitor<CacheOperationOutcomes.PutOutcome>(allOf(CacheOperationOutcomes.PutOutcome.class));
     put.addDerivedStatistic(averagePutTime);
-    averageRemoveTime= new LatencyMonitor<CacheOperationOutcomes.RemoveOutcome>(allOf(CacheOperationOutcomes.RemoveOutcome.class));
+    averageRemoveTime = new LatencyMonitor<CacheOperationOutcomes.RemoveOutcome>(allOf(CacheOperationOutcomes.RemoveOutcome.class));
     remove.addDerivedStatistic(averageRemoveTime);
+
+    String[] tierNames = findTier(cache);
+    tierStatistics = new HashMap<String, TierStatistics>(tierNames.length);
+    for (String tierName : tierNames) {
+      tierStatistics.put(tierName, new TierStatistics(cache, tierName));
+    }
   }
 
   static <T extends Enum<T>> OperationStatistic<T> findCacheStatistic(Cache<?, ?> cache, Class<T> type, String statName) {
@@ -101,6 +111,35 @@ class CacheStatistics {
     @SuppressWarnings("unchecked")
     OperationStatistic<T> statistic = (OperationStatistic<T>) result.iterator().next().getContext().attributes().get("this");
     return statistic;
+  }
+
+  static String[] findTier(Cache<?, ?> cache) {
+    // Here I'm randomly taking the eviction observer because it exists on all tiers
+    @SuppressWarnings("unchecked")
+    Query statQuery = queryBuilder()
+      .descendants()
+      .filter(context(attributes(Matchers.<Map<String, Object>>allOf(hasAttribute("name", "eviction"), hasAttribute("type", StoreOperationOutcomes.EvictionOutcome.class)))))
+      .build();
+
+    Set<TreeNode> statResult = statQuery.execute(Collections.singleton(ContextManager.nodeFor(cache)));
+
+    if (statResult.size() < 1) {
+      throw new RuntimeException("Failed to find tiers using the eviction observer, valid result Set sizes must 1 or more");
+    }
+
+    String[] tiers = new String[statResult.size()];
+
+    int i = 0;
+    for (TreeNode treeNode : statResult) {
+      Set tags = (Set) treeNode.getContext().attributes().get("tags");
+      if (tags.size() != 1) {
+        throw new RuntimeException("We expect tiers to have only one tag");
+      }
+
+      String storeType = tags.iterator().next().toString();
+      tiers[i++] = storeType;
+    }
+    return tiers;
   }
 
   <T extends Enum<T>> OperationStatistic<T> findLowestTierStatistic(Cache<?, ?> cache, Class<T> type, String statName) {
@@ -131,6 +170,8 @@ class CacheStatistics {
         throw new RuntimeException("Failed to find lowest tier statistic. \"tags\" set must be size 1");
       }
 
+      // We rely here on the alphabetical order matching the depth order so from highest to lowest we have
+      // [OnHeap], [OffHeap], [Disk], [Clustered]
       String storeType = treeNode.getContext().attributes().get("tags").toString();
       if (storeType.compareToIgnoreCase(lowestStoreType) < 0) {
         lowestStoreType = treeNode.getContext().attributes().get("tags").toString();
@@ -195,15 +236,15 @@ class CacheStatistics {
     return normalize(lowestTierEviction.sum(EnumSet.of(StoreOperationOutcomes.EvictionOutcome.SUCCESS)) - compensatingCounters.cacheEvictions);
   }
 
-  public float getAverageGetTime() {
+  public float getCacheAverageGetTime() {
     return (float) averageGetTime.value();
   }
 
-  public float getAveragePutTime() {
+  public float getCacheAveragePutTime() {
     return (float) averagePutTime.value();
   }
 
-  public float getAverageRemoveTime() {
+  public float getCacheAverageRemoveTime() {
     return (float) averageRemoveTime.value();
   }
 
