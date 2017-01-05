@@ -25,7 +25,6 @@ import org.ehcache.config.units.MemoryUnit;
 import org.ehcache.management.ManagementRegistryService;
 import org.ehcache.management.SharedManagementService;
 import org.ehcache.management.TextCollector;
-import org.ehcache.management.config.EhcacheStatisticsProviderConfiguration;
 import org.ehcache.management.providers.statistics.StatsUtil;
 import org.ehcache.management.registry.DefaultCollectorService;
 import org.ehcache.management.registry.DefaultManagementRegistryConfiguration;
@@ -41,21 +40,15 @@ import org.terracotta.management.model.capabilities.descriptors.Descriptor;
 import org.terracotta.management.model.context.Context;
 import org.terracotta.management.model.context.ContextContainer;
 import org.terracotta.management.model.stats.ContextualStatistics;
-import org.terracotta.management.model.stats.history.CounterHistory;
+import org.terracotta.management.model.stats.primitive.Counter;
 import org.terracotta.management.registry.ResultSet;
 import org.terracotta.management.registry.StatisticQuery;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.concurrent.TimeUnit;
 
 public class ManagementTest {
-
-  private final EhcacheStatisticsProviderConfiguration EHCACHE_STATS_CONFIG = new EhcacheStatisticsProviderConfiguration(1,TimeUnit.MINUTES,100,1,TimeUnit.MILLISECONDS,5,TimeUnit.SECONDS);
-
-//  @Rule
-//  public final Timeout globalTimeout = Timeout.seconds(10);
 
   @Test
   public void usingManagementRegistry() throws Exception {
@@ -64,7 +57,6 @@ public class ManagementTest {
     CacheManager cacheManager = null;
     try {
       DefaultManagementRegistryConfiguration registryConfiguration = new DefaultManagementRegistryConfiguration().setCacheManagerAlias("myCacheManager1"); // <1>
-      registryConfiguration.addConfiguration(EHCACHE_STATS_CONFIG);
       ManagementRegistryService managementRegistry = new DefaultManagementRegistryService(registryConfiguration); // <2>
 
       CacheConfiguration<Long, String> cacheConfiguration = CacheConfigurationBuilder.newCacheConfigurationBuilder(Long.class, String.class,
@@ -222,13 +214,13 @@ public class ManagementTest {
       SharedManagementService sharedManagementService = new DefaultSharedManagementService(); // <1>
       cacheManager1 = CacheManagerBuilder.newCacheManagerBuilder()
           .withCache("aCache", cacheConfiguration)
-          .using(new DefaultManagementRegistryConfiguration().setCacheManagerAlias("myCacheManager-1").addConfiguration(EHCACHE_STATS_CONFIG))
+          .using(new DefaultManagementRegistryConfiguration().setCacheManagerAlias("myCacheManager-1"))
           .using(sharedManagementService) // <2>
           .build(true);
 
       cacheManager2 = CacheManagerBuilder.newCacheManagerBuilder()
           .withCache("aCache", cacheConfiguration)
-          .using(new DefaultManagementRegistryConfiguration().setCacheManagerAlias("myCacheManager-2").addConfiguration(EHCACHE_STATS_CONFIG))
+          .using(new DefaultManagementRegistryConfiguration().setCacheManagerAlias("myCacheManager-2"))
           .using(sharedManagementService) // <3>
           .build(true);
 
@@ -258,14 +250,11 @@ public class ManagementTest {
 
         ContextualStatistics statisticsContext1 = counters.getResult(context1);
 
-        CounterHistory counterContext1 = statisticsContext1.getStatistic(CounterHistory.class, "Cache:MissCount");
+        Counter counterContext1 = statisticsContext1.getStatistic(Counter.class, "Cache:MissCount");
 
         // miss count is a sampled stat, for example its values could be [0,1,2].
         // In the present case, only the last value is important to us , the cache was eventually missed 2 times
-        if (counterContext1.getValue().length > 0) {
-          int mostRecentSampleIndex = counterContext1.getValue().length - 1;
-          val = counterContext1.getValue()[mostRecentSampleIndex].getValue();
-        }
+        val = counterContext1.getValue();
       } while(val != 2);
     }
     finally {

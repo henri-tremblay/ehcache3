@@ -26,8 +26,6 @@ import org.ehcache.core.spi.time.TimeSourceService;
 import org.ehcache.management.CollectorService;
 import org.ehcache.management.ManagementRegistryService;
 import org.ehcache.management.ManagementRegistryServiceConfiguration;
-import org.ehcache.management.config.StatisticsProviderConfiguration;
-import org.ehcache.management.providers.statistics.EhcacheStatisticsProvider;
 import org.ehcache.spi.service.Service;
 import org.ehcache.spi.service.ServiceDependencies;
 import org.ehcache.spi.service.ServiceProvider;
@@ -35,7 +33,6 @@ import org.terracotta.management.model.notification.ContextualNotification;
 import org.terracotta.management.model.stats.ContextualStatistics;
 import org.terracotta.management.registry.collect.DefaultStatisticCollector;
 import org.terracotta.management.registry.collect.StatisticCollector;
-import org.terracotta.management.registry.collect.StatisticConfiguration;
 
 import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
@@ -79,8 +76,6 @@ public class DefaultCollectorService implements CollectorService, CacheManagerLi
     cacheManager = serviceProvider.getService(CacheManagerProviderService.class).getCacheManager();
     scheduledExecutorService = serviceProvider.getService(ExecutionService.class).getScheduledExecutor(configuration.getCollectorExecutorAlias());
 
-    StatisticsProviderConfiguration providerConfiguration = configuration.getConfigurationFor(EhcacheStatisticsProvider.class);
-
     statisticCollector = new DefaultStatisticCollector(
       managementRegistry,
       scheduledExecutorService,
@@ -89,23 +84,7 @@ public class DefaultCollectorService implements CollectorService, CacheManagerLi
         public void onStatistics(Collection<ContextualStatistics> statistics) {
           collector.onStatistics(statistics);
         }
-      },
-      new StatisticCollector.TimeProvider() {
-        @Override
-        public long getTimeMillis() {
-          return timeSource.getTimeMillis();
-        }
-      },
-      providerConfiguration instanceof StatisticConfiguration ?
-        (StatisticConfiguration) providerConfiguration :
-        new StatisticConfiguration(
-          providerConfiguration.averageWindowDuration(),
-          providerConfiguration.averageWindowUnit(),
-          providerConfiguration.historySize(),
-          providerConfiguration.historyInterval(),
-          providerConfiguration.historyIntervalUnit(),
-          providerConfiguration.timeToDisable(),
-          providerConfiguration.timeToDisableUnit()));
+      });
 
     cacheManager.registerListener(this);
   }
@@ -123,17 +102,17 @@ public class DefaultCollectorService implements CollectorService, CacheManagerLi
   @Override
   public void cacheAdded(String alias, Cache<?, ?> cache) {
     collector.onNotification(
-        new ContextualNotification(
-            configuration.getContext().with("cacheName", alias),
-            EhcacheNotification.CACHE_ADDED.name()));
+      new ContextualNotification(
+        configuration.getContext().with("cacheName", alias),
+        EhcacheNotification.CACHE_ADDED.name()));
   }
 
   @Override
   public void cacheRemoved(String alias, Cache<?, ?> cache) {
     collector.onNotification(
-        new ContextualNotification(
-            configuration.getContext().with("cacheName", alias),
-            EhcacheNotification.CACHE_REMOVED.name()));
+      new ContextualNotification(
+        configuration.getContext().with("cacheName", alias),
+        EhcacheNotification.CACHE_REMOVED.name()));
   }
 
   @Override
@@ -146,26 +125,23 @@ public class DefaultCollectorService implements CollectorService, CacheManagerLi
         managementRegistry.register(statisticCollector);
 
         collector.onNotification(
-            new ContextualNotification(
-                configuration.getContext(),
-                EhcacheNotification.CACHE_MANAGER_AVAILABLE.name()));
-
-        // auto-start stat collection
-        statisticCollector.startStatisticCollector();
+          new ContextualNotification(
+            configuration.getContext(),
+            EhcacheNotification.CACHE_MANAGER_AVAILABLE.name()));
         break;
 
       case MAINTENANCE:
         collector.onNotification(
-            new ContextualNotification(
-                configuration.getContext(),
-                EhcacheNotification.CACHE_MANAGER_MAINTENANCE.name()));
+          new ContextualNotification(
+            configuration.getContext(),
+            EhcacheNotification.CACHE_MANAGER_MAINTENANCE.name()));
         break;
 
       case UNINITIALIZED:
         collector.onNotification(
-            new ContextualNotification(
-                configuration.getContext(),
-                EhcacheNotification.CACHE_MANAGER_CLOSED.name()));
+          new ContextualNotification(
+            configuration.getContext(),
+            EhcacheNotification.CACHE_MANAGER_CLOSED.name()));
 
         // deregister me - should not be in stop() - see other comments
         cacheManager.deregisterListener(this);

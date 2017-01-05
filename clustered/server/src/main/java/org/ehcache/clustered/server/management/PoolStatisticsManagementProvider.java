@@ -16,12 +16,10 @@
 package org.ehcache.clustered.server.management;
 
 import org.ehcache.clustered.server.state.EhcacheStateService;
-import org.ehcache.clustered.server.state.ResourcePageSource;
-import org.terracotta.context.extended.StatisticsRegistry;
 import org.terracotta.management.model.context.Context;
+import org.terracotta.management.registry.Named;
+import org.terracotta.management.registry.RequiredContext;
 import org.terracotta.management.registry.action.ExposedObject;
-import org.terracotta.management.registry.action.Named;
-import org.terracotta.management.registry.action.RequiredContext;
 import org.terracotta.management.service.monitoring.registry.provider.AbstractExposedStatistics;
 import org.terracotta.management.service.monitoring.registry.provider.AbstractStatisticsManagementProvider;
 
@@ -51,7 +49,7 @@ class PoolStatisticsManagementProvider extends AbstractStatisticsManagementProvi
   }
 
   @Override
-  protected StatisticsRegistry createStatisticsRegistry(PoolBinding managedObject) {
+  protected Object getContextObject(PoolBinding managedObject) {
     if (managedObject == PoolBinding.ALL_SHARED) {
       return null;
     }
@@ -60,28 +58,23 @@ class PoolStatisticsManagementProvider extends AbstractStatisticsManagementProvi
     PoolBinding.AllocationType allocationType = managedObject.getAllocationType();
 
     if (allocationType == PoolBinding.AllocationType.DEDICATED) {
-      ResourcePageSource resourcePageSource = Objects.requireNonNull(ehcacheStateService.getDedicatedResourcePageSource(poolName));
-      return getStatisticsService().createStatisticsRegistry(resourcePageSource);
+      return Objects.requireNonNull(ehcacheStateService.getDedicatedResourcePageSource(poolName));
 
     } else {
-      ResourcePageSource resourcePageSource = Objects.requireNonNull(ehcacheStateService.getSharedResourcePageSource(poolName));
-      return getStatisticsService().createStatisticsRegistry(resourcePageSource);
+      return Objects.requireNonNull(ehcacheStateService.getSharedResourcePageSource(poolName));
     }
   }
 
   @Override
-  protected AbstractExposedStatistics<PoolBinding> internalWrap(Context context, PoolBinding managedObject, StatisticsRegistry statisticsRegistry) {
-    return new PoolExposedStatistics(context, managedObject, statisticsRegistry);
+  protected AbstractExposedStatistics<PoolBinding> internalWrap(Context context, PoolBinding managedObject, Object contextObject) {
+    return new PoolExposedStatistics(context, managedObject, contextObject);
   }
 
   private static class PoolExposedStatistics extends AbstractExposedStatistics<PoolBinding> {
 
-    PoolExposedStatistics(Context context, PoolBinding binding, StatisticsRegistry statisticsRegistry) {
-      super(context, binding, statisticsRegistry);
-
-      if (statisticsRegistry != null) {
-        statisticsRegistry.registerSize("AllocatedSize", descriptor("allocatedSize", tags("tier", "Pool")));
-      }
+    PoolExposedStatistics(Context context, PoolBinding binding, Object contextObject) {
+      super(context, binding, contextObject);
+      getRegistry().registerSize("AllocatedSize", descriptor("allocatedSize", tags("tier", "Pool")));
     }
 
     @Override
