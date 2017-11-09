@@ -41,6 +41,10 @@ class SimpleBackend<K, V> implements Backend<K, V> {
   private final AtomicLong byteSize = new AtomicLong(0L);
 
   SimpleBackend(boolean byteSized, Supplier<EvictingConcurrentMap<K, OnHeapValueHolder<V>>> realMapSupplier) {
+    this(byteSized, new ConcurrentHashMap<>());
+  }
+
+  SimpleBackend(boolean byteSized, EvictingConcurrentMap<K, OnHeapValueHolder<V>> realMap) {
     this.byteSized = byteSized;
     this.realMap = realMapSupplier.get();
     this.realMapSupplier = realMapSupplier;
