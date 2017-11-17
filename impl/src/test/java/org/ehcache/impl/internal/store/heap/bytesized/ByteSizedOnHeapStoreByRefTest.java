@@ -25,6 +25,7 @@ import org.ehcache.config.units.MemoryUnit;
 import org.ehcache.core.events.StoreEventDispatcher;
 import org.ehcache.expiry.ExpiryPolicy;
 import org.ehcache.impl.copy.IdentityCopier;
+import org.ehcache.impl.internal.jctools.NonBlockingHashMap;
 import org.ehcache.impl.internal.sizeof.DefaultSizeOfEngine;
 import org.ehcache.impl.internal.store.heap.OnHeapStore;
 import org.ehcache.impl.internal.store.heap.OnHeapStoreByRefTest;
@@ -52,7 +53,7 @@ public class ByteSizedOnHeapStoreByRefTest extends OnHeapStoreByRefTest {
       final ExpiryPolicy<? super K, ? super V> expiry,
       final EvictionAdvisor<? super K, ? super V> evictionAdvisor, final int capacity) {
 
-    return new OnHeapStore<K, V>(new Store.Configuration<K, V>() {
+    Store.Configuration<K, V> configuration = new Store.Configuration<K, V>() {
       @Override
       public Class<K> getKeyType() {
         return (Class<K>) String.class;
@@ -97,7 +98,8 @@ public class ByteSizedOnHeapStoreByRefTest extends OnHeapStoreByRefTest {
       public int getDispatcherConcurrency() {
         return 0;
       }
-    }, timeSource, IdentityCopier.identityCopier(), IdentityCopier.identityCopier(), new DefaultSizeOfEngine(Long.MAX_VALUE, Long.MAX_VALUE), (StoreEventDispatcher<K, V>) eventDispatcher);
+    };
+    return new OnHeapStore<K, V>(configuration, timeSource, IdentityCopier.identityCopier(), IdentityCopier.identityCopier(), new DefaultSizeOfEngine(Long.MAX_VALUE, Long.MAX_VALUE), (StoreEventDispatcher<K, V>) eventDispatcher, new NonBlockingHashMap<>());
   }
 
 }

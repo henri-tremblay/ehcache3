@@ -21,11 +21,15 @@ import org.ehcache.config.units.EntryUnit;
 import org.ehcache.impl.internal.concurrent.ConcurrentHashMap;
 import org.ehcache.impl.copy.IdentityCopier;
 import org.ehcache.core.events.NullStoreEventDispatcher;
+import org.ehcache.impl.internal.concurrent.EvictingConcurrentMap;
+import org.ehcache.impl.internal.jctools.NonBlockingHashMap;
 import org.ehcache.impl.internal.sizeof.NoopSizeOfEngine;
 import org.ehcache.core.spi.time.SystemTimeSource;
 import org.ehcache.core.spi.store.Store;
 import org.hamcrest.Matchers;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -45,6 +49,7 @@ import static org.mockito.Mockito.when;
 /**
  * @author Ludovic Orban
  */
+@RunWith(Parameterized.class)
 public class OnHeapStoreBulkMethodsTest {
 
   @SuppressWarnings("unchecked")
@@ -62,7 +67,7 @@ public class OnHeapStoreBulkMethodsTest {
   protected <Number, CharSequence> OnHeapStore<Number, CharSequence> newStore() {
     Store.Configuration<Number, CharSequence> configuration = mockStoreConfig();
     return new OnHeapStore<>(configuration, SystemTimeSource.INSTANCE, IdentityCopier.identityCopier(), IdentityCopier.identityCopier(),
-        new NoopSizeOfEngine(), NullStoreEventDispatcher.nullStoreEventDispatcher());
+        new NoopSizeOfEngine(), NullStoreEventDispatcher.nullStoreEventDispatcher(), backingMap);
   }
 
   @Test
@@ -76,7 +81,7 @@ public class OnHeapStoreBulkMethodsTest {
     when(config.getResourcePools()).thenReturn(newResourcePoolsBuilder().heap(Long.MAX_VALUE, EntryUnit.ENTRIES).build());
 
     OnHeapStore<Number, Number> store = new OnHeapStore<>(config, SystemTimeSource.INSTANCE, IdentityCopier.identityCopier(), IdentityCopier.identityCopier(),
-        new NoopSizeOfEngine(), NullStoreEventDispatcher.nullStoreEventDispatcher());
+        new NoopSizeOfEngine(), NullStoreEventDispatcher.nullStoreEventDispatcher(), backingMap);
     store.put(1, 2);
     store.put(2, 3);
     store.put(3, 4);

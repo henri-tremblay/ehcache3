@@ -26,7 +26,10 @@ import org.ehcache.spi.resilience.StoreAccessException;
 import org.ehcache.core.spi.store.heap.LimitExceededException;
 import org.ehcache.expiry.ExpiryPolicy;
 import org.ehcache.impl.copy.IdentityCopier;
+import org.ehcache.impl.internal.concurrent.ConcurrentHashMap;
+import org.ehcache.impl.internal.concurrent.EvictingConcurrentMap;
 import org.ehcache.impl.internal.events.TestStoreEventDispatcher;
+import org.ehcache.impl.internal.jctools.NonBlockingHashMap;
 import org.ehcache.impl.internal.sizeof.DefaultSizeOfEngine;
 import org.ehcache.impl.internal.store.heap.OnHeapStore;
 import org.ehcache.impl.internal.store.heap.holders.CopiedOnHeapValueHolder;
@@ -42,6 +45,8 @@ import org.ehcache.spi.serialization.Serializer;
 import org.ehcache.core.spi.store.heap.SizeOfEngine;
 import org.hamcrest.Matcher;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -62,6 +67,7 @@ import static org.mockito.hamcrest.MockitoHamcrest.argThat;
  * @author Abhilash
  *
  */
+@RunWith(Parameterized.class)
 public class ByteAccountingTest {
 
   private static final SizeOfEngine SIZE_OF_ENGINE = new DefaultSizeOfEngine(Long.MAX_VALUE, Long.MAX_VALUE);
@@ -73,6 +79,13 @@ public class ByteAccountingTest {
   private static final SizeOfFilterSource FILTERSOURCE = new SizeOfFilterSource(true);
   private static final SizeOf SIZEOF = SizeOf.newInstance(FILTERSOURCE.getFilters());
 
+  @Parameterized.Parameters(name = "backingMap={0}")
+  public static EvictingConcurrentMap<?, ?>[] data() {
+    return new EvictingConcurrentMap<?, ?>[] { new ConcurrentHashMap(), new NonBlockingHashMap() };
+  }
+
+  @Parameterized.Parameter
+  public EvictingConcurrentMap<?, ?> backingMap;
 
   <K, V> OnHeapStoreForTests<K, V> newStore() {
     return newStore(SystemTimeSource.INSTANCE, ExpiryPolicyBuilder.noExpiration(), Eviction.noAdvice());

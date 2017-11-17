@@ -34,12 +34,14 @@ import org.ehcache.impl.internal.store.basic.BaseStore;
 import org.ehcache.spi.resilience.StoreAccessException;
 import org.ehcache.core.spi.store.heap.LimitExceededException;
 import org.ehcache.expiry.ExpiryPolicy;
+import org.ehcache.impl.config.loaderwriter.DefaultCacheLoaderWriterConfiguration;
 import org.ehcache.impl.copy.IdentityCopier;
 import org.ehcache.impl.internal.concurrent.ConcurrentHashMap;
 import org.ehcache.impl.copy.SerializingCopier;
 import org.ehcache.core.events.NullStoreEventDispatcher;
 import org.ehcache.impl.internal.concurrent.EvictingConcurrentMap;
 import org.ehcache.impl.internal.events.ScopedStoreEventDispatcher;
+import org.ehcache.impl.internal.jctools.NonBlockingHashMap;
 import org.ehcache.impl.internal.sizeof.NoopSizeOfEngine;
 import org.ehcache.impl.internal.store.heap.holders.CopiedOnHeapValueHolder;
 import org.ehcache.impl.internal.store.heap.holders.OnHeapValueHolder;
@@ -49,6 +51,7 @@ import org.ehcache.core.spi.time.TimeSourceService;
 import org.ehcache.impl.store.HashUtils;
 import org.ehcache.impl.serialization.TransientStateRepository;
 import org.ehcache.sizeof.annotations.IgnoreSizeOf;
+import org.ehcache.spi.loaderwriter.CacheLoaderWriterProvider;
 import org.ehcache.spi.serialization.Serializer;
 import org.ehcache.spi.serialization.StatefulSerializer;
 import org.ehcache.spi.service.ServiceProvider;
@@ -119,6 +122,8 @@ import static org.terracotta.statistics.StatisticType.GAUGE;
  * The storage of mappings is handled by a {@link ConcurrentHashMap} accessed through {@link Backend}.
  */
 public class OnHeapStore<K, V> extends BaseStore<K, V> implements HigherCachingTier<K, V> {
+
+  private static final boolean USE_CHM_ONLY = Boolean.getBoolean("org.ehcache.onheap.useChmOnly");
 
   private static final Logger LOG = LoggerFactory.getLogger(OnHeapStore.class);
 
@@ -1607,8 +1612,14 @@ public class OnHeapStore<K, V> extends BaseStore<K, V> implements HigherCachingT
       return store;
     }
 
+    private static boolean hasLoaderWriter(ServiceConfiguration<?>[] serviceConfigs) {
+      return Arrays.stream(serviceConfigs).anyMatch(config -> CacheLoaderWriterProvider.class == config.getServiceType());
+    }
+
     public <K, V> OnHeapStore<K, V> createStoreInternal(Configuration<K, V> storeConfig, StoreEventDispatcher<K, V> eventDispatcher,
                                                         ServiceConfiguration<?>... serviceConfigs) {
+
+      EvictingConcurrentMap<?, ?> backingMap = initBackingMap(storeConfig, serviceConfigs);
       TimeSource timeSource = serviceProvider.getService(TimeSourceService.class).getTimeSource();
       CopyProvider copyProvider = serviceProvider.getService(CopyProvider.class);
       Copier<K> keyCopier  = copyProvider.createKeyCopier(storeConfig.getKeyType(), storeConfig.getKeySerializer(), serviceConfigs);
@@ -1622,6 +1633,14 @@ public class OnHeapStore<K, V> extends BaseStore<K, V> implements HigherCachingT
       OnHeapStore<K, V> onHeapStore = new OnHeapStore<>(storeConfig, timeSource, keyCopier, valueCopier, sizeOfEngine, eventDispatcher, ConcurrentHashMap::new);
       createdStores.put(onHeapStore, copiers);
       return onHeapStore;
+    }
+
+    private EvictingConcurrentMap<?, ?> initBackingMap(Configuration<?, ?> storeConfig, ServiceConfiguration<?>... serviceConfigs) {
+      // NBHM has no atomicity mechanism on compute(). Because of that, we might have quirks using it with multiple tier or a loader writer
+      if(USE_CHM_ONLY || hasLoaderWriter(serviceConfigs) || storeConfig.getResourcePools().getResourceTypeSet().size() != 1) {
+        return new ConcurrentHashMap<>();
+      }
+      return new NonBlockingHashMap<>();
     }
 
     @Override

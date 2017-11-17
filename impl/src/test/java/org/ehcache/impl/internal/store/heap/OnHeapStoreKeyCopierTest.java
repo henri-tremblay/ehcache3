@@ -23,6 +23,7 @@ import org.ehcache.expiry.ExpiryPolicy;
 import org.ehcache.spi.resilience.StoreAccessException;
 import org.ehcache.impl.copy.IdentityCopier;
 import org.ehcache.core.events.NullStoreEventDispatcher;
+import org.ehcache.impl.internal.jctools.NonBlockingHashMap;
 import org.ehcache.impl.internal.sizeof.NoopSizeOfEngine;
 import org.ehcache.core.spi.time.SystemTimeSource;
 import org.ehcache.core.spi.store.Store;
@@ -101,7 +102,7 @@ public class OnHeapStoreKeyCopierTest {
       }
     };
 
-    store = new OnHeapStore<>(configuration, SystemTimeSource.INSTANCE, keyCopier, IdentityCopier.identityCopier(), new NoopSizeOfEngine(), NullStoreEventDispatcher.nullStoreEventDispatcher());
+    store = new OnHeapStore<>(configuration, SystemTimeSource.INSTANCE, keyCopier, IdentityCopier.identityCopier(), new NoopSizeOfEngine(), NullStoreEventDispatcher.nullStoreEventDispatcher(), new NonBlockingHashMap<>());
   }
 
   @Test
