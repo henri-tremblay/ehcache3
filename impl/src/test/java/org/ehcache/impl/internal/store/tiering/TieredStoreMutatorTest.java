@@ -178,7 +178,7 @@ public class TieredStoreMutatorTest {
     // Here again, all parameters are useless, we only care about the beforeCompletingTheFault implementation
     CachingTier<String, String> cachingTier = new OnHeapStore<>(config, SystemTimeSource.INSTANCE,
       StringCopier.copier(), StringCopier.copier(), new NoopSizeOfEngine(), NullStoreEventDispatcher.
-      <String, String>nullStoreEventDispatcher());
+      <String, String>nullStoreEventDispatcher(), new org.ehcache.impl.internal.concurrent.ConcurrentHashMap<>());
 
     tieredStore = new TieredStore<>(cachingTier, authoritativeTier);
   }

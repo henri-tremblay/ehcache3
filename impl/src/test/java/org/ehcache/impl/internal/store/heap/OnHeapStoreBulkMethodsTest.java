@@ -21,12 +21,16 @@ import org.ehcache.config.units.EntryUnit;
 import org.ehcache.impl.internal.concurrent.ConcurrentHashMap;
 import org.ehcache.impl.copy.IdentityCopier;
 import org.ehcache.core.events.NullStoreEventDispatcher;
+import org.ehcache.impl.internal.concurrent.EvictingConcurrentMap;
+import org.ehcache.impl.internal.jctools.NonBlockingHashMap;
 import org.ehcache.impl.internal.sizeof.NoopSizeOfEngine;
 import org.ehcache.core.spi.time.SystemTimeSource;
 import org.ehcache.core.spi.store.Store;
 import org.ehcache.spi.copy.Copier;
 import org.hamcrest.Matchers;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -46,9 +50,18 @@ import static org.mockito.Mockito.when;
 /**
  * @author Ludovic Orban
  */
+@RunWith(Parameterized.class)
 public class OnHeapStoreBulkMethodsTest {
 
   public static final Copier DEFAULT_COPIER = new IdentityCopier();
+
+  @Parameterized.Parameters(name = "backingMap={0}")
+  public static EvictingConcurrentMap<?, ?>[] data() {
+    return new EvictingConcurrentMap<?, ?>[] { new ConcurrentHashMap(), new NonBlockingHashMap() };
+  }
+
+  @Parameterized.Parameter
+  public EvictingConcurrentMap<?, ?> backingMap;
 
   @SuppressWarnings("unchecked")
   protected <K, V> Store.Configuration<K, V> mockStoreConfig() {
@@ -65,7 +78,7 @@ public class OnHeapStoreBulkMethodsTest {
   protected <Number, CharSequence> OnHeapStore<Number, CharSequence> newStore() {
     Store.Configuration<Number, CharSequence> configuration = mockStoreConfig();
     return new OnHeapStore<Number, CharSequence>(configuration, SystemTimeSource.INSTANCE, DEFAULT_COPIER, DEFAULT_COPIER,
-        new NoopSizeOfEngine(), NullStoreEventDispatcher.<Number, CharSequence>nullStoreEventDispatcher());
+        new NoopSizeOfEngine(), NullStoreEventDispatcher.<Number, CharSequence>nullStoreEventDispatcher(), backingMap);
   }
 
   @Test
@@ -79,7 +92,7 @@ public class OnHeapStoreBulkMethodsTest {
     when(config.getResourcePools()).thenReturn(newResourcePoolsBuilder().heap(Long.MAX_VALUE, EntryUnit.ENTRIES).build());
 
     OnHeapStore<Number, Number> store = new OnHeapStore<>(config, SystemTimeSource.INSTANCE, DEFAULT_COPIER, DEFAULT_COPIER,
-        new NoopSizeOfEngine(), NullStoreEventDispatcher.nullStoreEventDispatcher());
+        new NoopSizeOfEngine(), NullStoreEventDispatcher.nullStoreEventDispatcher(), backingMap);
     store.put(1, 2);
     store.put(2, 3);
     store.put(3, 4);

@@ -23,7 +23,10 @@ import org.ehcache.core.internal.store.StoreConfigurationImpl;
 import org.ehcache.config.units.EntryUnit;
 import org.ehcache.expiry.ExpiryPolicy;
 import org.ehcache.impl.copy.SerializingCopier;
+import org.ehcache.impl.internal.concurrent.ConcurrentHashMap;
+import org.ehcache.impl.internal.concurrent.EvictingConcurrentMap;
 import org.ehcache.impl.internal.events.TestStoreEventDispatcher;
+import org.ehcache.impl.internal.jctools.NonBlockingHashMap;
 import org.ehcache.impl.internal.sizeof.NoopSizeOfEngine;
 import org.ehcache.impl.internal.store.heap.holders.SerializedOnHeapValueHolder;
 import org.ehcache.core.spi.time.SystemTimeSource;
@@ -37,6 +40,8 @@ import org.ehcache.spi.copy.Copier;
 import org.ehcache.spi.serialization.Serializer;
 import org.ehcache.spi.service.ServiceConfiguration;
 import org.junit.Before;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import static java.lang.ClassLoader.getSystemClassLoader;
 import static org.ehcache.config.builders.ResourcePoolsBuilder.newResourcePoolsBuilder;
@@ -48,8 +53,16 @@ import static org.ehcache.core.internal.service.ServiceLocator.dependencySet;
  *
  * @author Aurelien Broszniowski
  */
-
+@RunWith(Parameterized.class)
 public class OnHeapStoreByValueSPITest extends StoreSPITest<String, String> {
+
+  @Parameterized.Parameters(name = "backingMap={0}")
+  public static EvictingConcurrentMap<?, ?>[] data() {
+    return new EvictingConcurrentMap<?, ?>[] { new ConcurrentHashMap(), new NonBlockingHashMap() };
+  }
+
+  @Parameterized.Parameter
+  public EvictingConcurrentMap<?, ?> backingMap;
 
   private StoreFactory<String, String> storeFactory;
 
@@ -91,7 +104,7 @@ public class OnHeapStoreByValueSPITest extends StoreSPITest<String, String> {
         Store.Configuration<String, String> config = new StoreConfigurationImpl<>(getKeyType(), getValueType(),
           evictionAdvisor, getClass().getClassLoader(), expiry, resourcePools, 0,
           new JavaSerializer<>(getSystemClassLoader()), new JavaSerializer<>(getSystemClassLoader()));
-        return new OnHeapStore<>(config, timeSource, defaultCopier, defaultCopier, new NoopSizeOfEngine(), new TestStoreEventDispatcher<>());
+        return new OnHeapStore<>(config, timeSource, defaultCopier, defaultCopier, new NoopSizeOfEngine(), new TestStoreEventDispatcher<>(), backingMap);
       }
 
       @Override
