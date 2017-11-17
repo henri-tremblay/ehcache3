@@ -38,10 +38,8 @@ import org.ehcache.impl.copy.SerializingCopier;
 import org.ehcache.core.events.NullStoreEventDispatcher;
 import org.ehcache.impl.internal.concurrent.EvictingConcurrentMap;
 import org.ehcache.impl.internal.events.ScopedStoreEventDispatcher;
-import org.ehcache.impl.internal.jctools.NonBlockingHashMap;
 import org.ehcache.impl.internal.sizeof.NoopSizeOfEngine;
 import org.ehcache.impl.internal.store.heap.holders.CopiedOnHeapValueHolder;
-import org.ehcache.impl.internal.store.heap.holders.OnHeapKey;
 import org.ehcache.impl.internal.store.heap.holders.OnHeapValueHolder;
 import org.ehcache.impl.internal.store.heap.holders.SerializedOnHeapValueHolder;
 import org.ehcache.core.spi.time.TimeSource;
@@ -90,8 +88,6 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -210,13 +206,12 @@ public class OnHeapStore<K, V> implements Store<K,V>, HigherCachingTier<K, V> {
 
   private static final Supplier<Boolean> REPLACE_EQUALS_TRUE = () -> Boolean.TRUE;
 
-  public OnHeapStore(Configuration<K, V> config, TimeSource timeSource, Copier<K> keyCopier, Copier<V> valueCopier, SizeOfEngine sizeOfEngine, StoreEventDispatcher<K, V> eventDispatcher) {
+  public OnHeapStore(Configuration<K, V> config, TimeSource timeSource, Copier<K> keyCopier, Copier<V> valueCopier, SizeOfEngine sizeOfEngine, StoreEventDispatcher<K, V> eventDispatcher, EvictingConcurrentMap<?, ?> backingMap) {
     Objects.requireNonNull(keyCopier, "keyCopier must not be null");
 
     this.valueCopier = Objects.requireNonNull(valueCopier, "valueCopier must not be null");
     this.timeSource = Objects.requireNonNull(timeSource, "timeSource must not be null");
     this.sizeOfEngine = Objects.requireNonNull(sizeOfEngine, "sizeOfEngine must not be null");
-
     SizedResourcePool heapPool = config.getResourcePools().getPoolForResource(ResourceType.Core.HEAP);
     if (heapPool == null) {
       throw new IllegalArgumentException("OnHeap store must be configured with a resource of type 'heap'");
@@ -235,7 +230,11 @@ public class OnHeapStore<K, V> implements Store<K,V>, HigherCachingTier<K, V> {
     this.expiry = config.getExpiry();
     this.storeEventDispatcher = eventDispatcher;
 
-    this.map = initBackend(keyCopier);
+    if (keyCopier instanceof IdentityCopier) {
+      this.map = new SimpleBackend<>(byteSized, castBackend(backingMap));
+    } else {
+      this.map = new KeyCopyBackend<>(byteSized, keyCopier, castBackend(backingMap));
+    }
 
     getObserver = operation(StoreOperationOutcomes.GetOutcome.class).named("get").of(this).tag(STATISTICS_TAG).build();
     putObserver = operation(StoreOperationOutcomes.PutOutcome.class).named("put").of(this).tag(STATISTICS_TAG).build();
@@ -267,13 +266,8 @@ public class OnHeapStore<K, V> implements Store<K,V>, HigherCachingTier<K, V> {
   }
 
   @SuppressWarnings("unchecked")
-  private Backend<K, V> initBackend(Copier<K> keyCopier) {
-    EvictingConcurrentMap<?, ?> backend = new NonBlockingHashMap<>();
-    if (keyCopier instanceof IdentityCopier) {
-      return new SimpleBackend<>(byteSized, (EvictingConcurrentMap<K, OnHeapValueHolder<V>>) backend);
-    } else {
-      return new KeyCopyBackend<>(byteSized, keyCopier, (EvictingConcurrentMap<OnHeapKey<K>, OnHeapValueHolder<V>>) backend);
-    }
+  private <L, M> EvictingConcurrentMap<L, M> castBackend(EvictingConcurrentMap<?, ?> backingMap) {
+    return (EvictingConcurrentMap<L, M>) backingMap;
   }
 
   @Override
