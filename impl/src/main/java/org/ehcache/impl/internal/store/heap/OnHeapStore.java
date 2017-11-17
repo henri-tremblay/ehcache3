@@ -90,6 +90,8 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -233,11 +235,7 @@ public class OnHeapStore<K, V> implements Store<K,V>, HigherCachingTier<K, V> {
     this.expiry = config.getExpiry();
     this.storeEventDispatcher = eventDispatcher;
 
-    if (keyCopier instanceof IdentityCopier) {
-      this.map = new SimpleBackend<>(byteSized, new NonBlockingHashMap<>());
-    } else {
-      this.map = new KeyCopyBackend<>(byteSized, keyCopier, new NonBlockingHashMap<>());
-    }
+    this.map = initBackend(keyCopier);
 
     getObserver = operation(StoreOperationOutcomes.GetOutcome.class).named("get").of(this).tag(STATISTICS_TAG).build();
     putObserver = operation(StoreOperationOutcomes.PutOutcome.class).named("put").of(this).tag(STATISTICS_TAG).build();
@@ -265,6 +263,16 @@ public class OnHeapStore<K, V> implements Store<K,V>, HigherCachingTier<K, V> {
 
     if(byteSized) {
       StatisticsManager.createPassThroughStatistic(this, "occupiedMemory", tags, GAUGE, () -> map.byteSize());
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private Backend<K, V> initBackend(Copier<K> keyCopier) {
+    EvictingConcurrentMap<?, ?> backend = new NonBlockingHashMap<>();
+    if (keyCopier instanceof IdentityCopier) {
+      return new SimpleBackend<>(byteSized, (EvictingConcurrentMap<K, OnHeapValueHolder<V>>) backend);
+    } else {
+      return new KeyCopyBackend<>(byteSized, keyCopier, (EvictingConcurrentMap<OnHeapKey<K>, OnHeapValueHolder<V>>) backend);
     }
   }
 
@@ -643,7 +651,7 @@ public class OnHeapStore<K, V> implements Store<K,V>, HigherCachingTier<K, V> {
 
   @Override
   public void clear() {
-    this.map = map.clear();
+    map.clear();
   }
 
   @Override
