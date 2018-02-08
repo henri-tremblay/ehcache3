@@ -26,6 +26,7 @@ dependencies {
   testCompileOnly project(':xml')
   testCompileOnly "org.terracotta.internal:client-runtime:$terracottaCoreVersion"
   testCompileOnly "org.terracotta:runnel:$terracottaPlatformVersion"
+  testCompileOnly "org.terracotta:lease-api:$terracottaPlatformVersion"
 
   testCompile project(':management')
   testCompile "org.terracotta.management.dist:mnm-nms:$terracottaPlatformVersion"
@@ -33,6 +34,8 @@ dependencies {
   testCompile "com.fasterxml.jackson.core:jackson-databind:2.8.0"
   testRuntime project(':clustered:clustered-dist')
   testRuntime project(':dist')
+
+  testCompile project(path: ':core-spi-test')
 
   testCompile (group:'org.terracotta.internal', name:'galvan-support', version: terracottaCoreVersion) {
     // galvan-support depends on junit 4.11 and version enforcement plugin won't allow that

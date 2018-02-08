@@ -31,11 +31,7 @@ public interface StoreOperationOutcomes {
     /**
      * miss
      */
-    MISS,
-    /**
-     * timeout
-     */
-    TIMEOUT
+    MISS
   }
 
   /**

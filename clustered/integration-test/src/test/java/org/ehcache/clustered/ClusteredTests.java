@@ -15,6 +15,8 @@
  */
 package org.ehcache.clustered;
 
+import org.ehcache.clustered.util.KitManager;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,65 +36,6 @@ public abstract class ClusteredTests {
   private static final boolean FORCE_KIT_REFRESH = false;
 
   static {
-    initInstallationPath();
-  }
-
-  private static void initInstallationPath() {
-    if(System.getProperty("kitInstallationPath") != null) {
-      return; // nothing to do, all set
-    }
-
-    String currentDir = System.getProperty("user.dir");
-
-    // We might have the root of ehcache or in the integration-test directory
-    // as current working directory
-    String diskPrefix;
-    if(Paths.get(currentDir).getFileName().toString().equals("integration-test")) {
-      diskPrefix = "";
-    }
-    else {
-      diskPrefix = "clustered/integration-test/";
-    }
-
-    String kitInstallationPath = getKitInstallationPath(diskPrefix);
-
-    if (kitInstallationPath == null || FORCE_KIT_REFRESH) {
-      installKit(diskPrefix);
-      kitInstallationPath = getKitInstallationPath(diskPrefix);
-    }
-
-    System.setProperty("kitInstallationPath", kitInstallationPath);
-  }
-
-  private static void installKit(String diskPrefix) {
-    try {
-      Process process = new ProcessBuilder(diskPrefix + "../../gradlew", "copyServerLibs")
-        .redirectError(ProcessBuilder.Redirect.INHERIT)
-        .redirectOutput(ProcessBuilder.Redirect.INHERIT)
-        .start();
-      int status = process.waitFor();
-      assertThat(status).isZero();
-    } catch (IOException e) {
-      fail("Failed to start gradle to install kit", e);
-    } catch (InterruptedException e) {
-      fail("Interrupted while installing kit", e);
-    }
-  }
-
-  private static String getKitInstallationPath(String diskPrefix) {
-    String basedir = diskPrefix + "build/ehcache-kit";
-    if(!new File(basedir).exists()) {
-      return null;
-    }
-    try {
-      return Files.list(Paths.get(basedir))
-        .sorted(Comparator.<Path>naturalOrder().reversed()) // the last one should be the one with the highest version
-        .findFirst()
-        .map(path -> path.toAbsolutePath().normalize().toString())
-        .orElse(null);
-    } catch (IOException e) {
-      fail("Failed to set kitInstallationPath from " + basedir, e);
-      return null;
-    }
+    KitManager.initInstallationPath(FORCE_KIT_REFRESH);
   }
 }

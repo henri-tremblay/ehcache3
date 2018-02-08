@@ -138,7 +138,7 @@ public class ClusteredStore<K, V> implements AuthoritativeTier<K, V> {
   /**
    * For tests
    */
-  ClusteredStore(OperationsCodec<K, V> codec, EternalChainResolver<K, V> resolver, ServerStoreProxy proxy, TimeSource timeSource) {
+  public ClusteredStore(OperationsCodec<K, V> codec, EternalChainResolver<K, V> resolver, ServerStoreProxy proxy, TimeSource timeSource) {
     this(codec, resolver, timeSource);
     this.storeProxy = proxy;
   }
@@ -150,8 +150,8 @@ public class ClusteredStore<K, V> implements AuthoritativeTier<K, V> {
     try {
       value = getInternal(key);
     } catch (TimeoutException e) {
-      getObserver.end(StoreOperationOutcomes.GetOutcome.TIMEOUT);
-      return null;
+      getObserver.end(StoreOperationOutcomes.GetOutcome.MISS);
+      throw new StoreAccessException(e);
     }
     if(value == null) {
       getObserver.end(StoreOperationOutcomes.GetOutcome.MISS);
@@ -200,7 +200,7 @@ public class ClusteredStore<K, V> implements AuthoritativeTier<K, V> {
     try {
       return getInternal(key) != null;
     } catch (TimeoutException e) {
-      return false;
+      throw new StoreAccessException(e);
     }
   }
 
@@ -473,8 +473,7 @@ public class ClusteredStore<K, V> implements AuthoritativeTier<K, V> {
         try {
           value = getInternal(key);
         } catch (TimeoutException e) {
-          // This timeout handling is safe **only** in the context of a get/read operation!
-          value = null;
+          throw new StoreAccessException(e);
         }
         map.put(key, value);
       }
@@ -497,8 +496,8 @@ public class ClusteredStore<K, V> implements AuthoritativeTier<K, V> {
     try {
       value = getInternal(key);
     } catch (TimeoutException e) {
-      getAndFaultObserver.end(AuthoritativeTierOperationOutcomes.GetAndFaultOutcome.TIMEOUT);
-      return null;
+      getAndFaultObserver.end(AuthoritativeTierOperationOutcomes.GetAndFaultOutcome.MISS);
+      throw new StoreAccessException(e);
     }
     if(value == null) {
       getAndFaultObserver.end(AuthoritativeTierOperationOutcomes.GetAndFaultOutcome.MISS);

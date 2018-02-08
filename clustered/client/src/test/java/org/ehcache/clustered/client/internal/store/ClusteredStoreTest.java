@@ -38,7 +38,9 @@ import org.ehcache.core.statistics.StoreOperationOutcomes;
 import org.ehcache.impl.store.HashUtils;
 import org.ehcache.impl.serialization.LongSerializer;
 import org.ehcache.impl.serialization.StringSerializer;
+import org.hamcrest.CoreMatchers;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.terracotta.connection.Connection;
@@ -63,6 +65,7 @@ import static org.ehcache.clustered.util.StatisticsTestUtils.validateStat;
 import static org.ehcache.clustered.util.StatisticsTestUtils.validateStats;
 import static org.ehcache.core.spi.store.Store.ValueHolder.NO_EXPIRE;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.isA;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -165,14 +168,19 @@ public class ClusteredStoreTest {
   }
 
   @Test
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "rawtype"})
   public void testGetTimeout() throws Exception {
     ServerStoreProxy proxy = mock(ServerStoreProxy.class);
     long longKey = HashUtils.intHashToLong(new Long(1L).hashCode());
     when(proxy.get(longKey)).thenThrow(TimeoutException.class);
     ClusteredStore<Long, String> store = new ClusteredStore<>(null, null, proxy, null);
-    assertThat(store.get(1L), nullValue());
-    validateStats(store, EnumSet.of(StoreOperationOutcomes.GetOutcome.TIMEOUT));
+    try {
+      store.get(1L);
+      fail("SAE expected");
+    } catch(StoreAccessException e) {
+      assertThat(e.getCause(), CoreMatchers.isA((Class<Throwable>) (Class) TimeoutException.class));
+    }
+    validateStats(store, EnumSet.of(StoreOperationOutcomes.GetOutcome.MISS));
   }
 
   @Test
