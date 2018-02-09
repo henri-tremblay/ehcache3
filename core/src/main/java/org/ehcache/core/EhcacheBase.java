@@ -59,6 +59,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static org.ehcache.core.exceptions.ExceptionFactory.newCacheLoadingException;
+import static org.ehcache.core.internal.util.CheckUtil.checkNonNull;
+import static org.ehcache.core.internal.util.CheckUtil.checkNonNullContent;
 import static org.terracotta.statistics.StatisticBuilder.operation;
 
 /**
@@ -610,23 +612,6 @@ public abstract class EhcacheBase<K, V> implements InternalCache<K, V> {
   @Override
   public Map<BulkOps, LongAdder> getBulkMethodEntries() {
     return bulkMethodEntries;
-  }
-
-  protected static void checkNonNull(Object thing) {
-    Objects.requireNonNull(thing);
-  }
-
-  protected static void checkNonNull(Object... things) {
-    for (Object thing : things) {
-      checkNonNull(thing);
-    }
-  }
-
-  protected void checkNonNullContent(Collection<?> collectionOfThings) {
-    checkNonNull(collectionOfThings);
-    for (Object thing : collectionOfThings) {
-      checkNonNull(thing);
-    }
   }
 
   protected abstract class Jsr107CacheBase implements Jsr107Cache<K, V> {

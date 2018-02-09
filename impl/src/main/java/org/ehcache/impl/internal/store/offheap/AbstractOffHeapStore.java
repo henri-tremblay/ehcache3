@@ -35,6 +35,7 @@ import org.ehcache.config.EvictionAdvisor;
 import org.ehcache.core.config.ExpiryUtils;
 import org.ehcache.core.events.StoreEventDispatcher;
 import org.ehcache.core.events.StoreEventSink;
+import org.ehcache.core.internal.util.CheckUtil;
 import org.ehcache.spi.resilience.StoreAccessException;
 import org.ehcache.core.spi.time.TimeSource;
 import org.ehcache.expiry.ExpiryPolicy;
@@ -163,7 +164,9 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
   @Override
   public Store.ValueHolder<V> get(K key) throws StoreAccessException {
     checkKey(key);
+
     getObserver.begin();
+
     ValueHolder<V> result = internalGet(key, true, true);
     if (result == null) {
       getObserver.end(StoreOperationOutcomes.GetOutcome.MISS);
@@ -174,9 +177,9 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
   }
 
   private Store.ValueHolder<V> internalGet(K key, final boolean updateAccess, final boolean touchValue) throws StoreAccessException {
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+    AtomicReference<OffHeapValueHolder<V>> heldValue = new AtomicReference<>();
 
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
-    final AtomicReference<OffHeapValueHolder<V>> heldValue = new AtomicReference<>();
     try {
       OffHeapValueHolder<V> result = backingMap().computeIfPresent(key, (mappedKey, mappedValue) -> {
         long now = timeSource.getTimeMillis();
@@ -217,14 +220,14 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public PutStatus put(final K key, final V value) throws StoreAccessException {
-    putObserver.begin();
     checkKey(key);
     checkValue(value);
 
-    final AtomicBoolean put = new AtomicBoolean();
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+    long now = timeSource.getTimeMillis();
+    AtomicBoolean put = new AtomicBoolean();
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
 
-    final long now = timeSource.getTimeMillis();
+    putObserver.begin();
     try {
       BiFunction<K, OffHeapValueHolder<V>, OffHeapValueHolder<V>> mappingFunction = (mappedKey, mappedValue) -> {
 
@@ -260,12 +263,13 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public Store.ValueHolder<V> putIfAbsent(final K key, final V value) throws NullPointerException, StoreAccessException {
-    putIfAbsentObserver.begin();
     checkKey(key);
     checkValue(value);
 
-    final AtomicReference<Store.ValueHolder<V>> returnValue = new AtomicReference<>();
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+    putIfAbsentObserver.begin();
+
+    AtomicReference<Store.ValueHolder<V>> returnValue = new AtomicReference<>();
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
 
     try {
       BiFunction<K, OffHeapValueHolder<V>, OffHeapValueHolder<V>> mappingFunction = (mappedKey, mappedValue) -> {
@@ -301,13 +305,14 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public boolean remove(final K key) throws StoreAccessException {
-    removeObserver.begin();
     checkKey(key);
 
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
-    final long now = timeSource.getTimeMillis();
+    removeObserver.begin();
 
-    final AtomicBoolean removed = new AtomicBoolean(false);
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+    long now = timeSource.getTimeMillis();
+
+    AtomicBoolean removed = new AtomicBoolean(false);
     try {
 
       backingMap().computeIfPresent(key, (mappedKey, mappedValue) -> {
@@ -340,13 +345,14 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public RemoveStatus remove(final K key, final V value) throws StoreAccessException {
-    conditionalRemoveObserver.begin();
     checkKey(key);
     checkValue(value);
 
-    final AtomicBoolean removed = new AtomicBoolean(false);
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
-    final AtomicBoolean mappingExists = new AtomicBoolean();
+    conditionalRemoveObserver.begin();
+
+    AtomicBoolean removed = new AtomicBoolean(false);
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+    AtomicBoolean mappingExists = new AtomicBoolean();
 
     try {
       backingMap().computeIfPresent(key, (mappedKey, mappedValue) -> {
@@ -387,12 +393,13 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public ValueHolder<V> replace(final K key, final V value) throws NullPointerException, StoreAccessException {
-    replaceObserver.begin();
     checkKey(key);
     checkValue(value);
 
-    final AtomicReference<Store.ValueHolder<V>> returnValue = new AtomicReference<>(null);
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+    replaceObserver.begin();
+
+    AtomicReference<Store.ValueHolder<V>> returnValue = new AtomicReference<>(null);
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
     BiFunction<K, OffHeapValueHolder<V>, OffHeapValueHolder<V>> mappingFunction = (mappedKey, mappedValue) -> {
       long now = timeSource.getTimeMillis();
 
@@ -424,14 +431,15 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public ReplaceStatus replace(final K key, final V oldValue, final V newValue) throws NullPointerException, IllegalArgumentException, StoreAccessException {
-    conditionalReplaceObserver.begin();
     checkKey(key);
     checkValue(oldValue);
     checkValue(newValue);
 
-    final AtomicBoolean replaced = new AtomicBoolean(false);
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
-    final AtomicBoolean mappingExists = new AtomicBoolean();
+    conditionalReplaceObserver.begin();
+
+    AtomicBoolean replaced = new AtomicBoolean(false);
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+    AtomicBoolean mappingExists = new AtomicBoolean();
 
     BiFunction<K, OffHeapValueHolder<V>, OffHeapValueHolder<V>> mappingFunction = (mappedKey, mappedValue) -> {
       long now = timeSource.getTimeMillis();
@@ -520,12 +528,14 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public ValueHolder<V> compute(final K key, final BiFunction<? super K, ? super V, ? extends V> mappingFunction, final Supplier<Boolean> replaceEqual) throws StoreAccessException {
-    computeObserver.begin();
     checkKey(key);
 
-    final AtomicBoolean write = new AtomicBoolean(false);
-    final AtomicReference<OffHeapValueHolder<V>> valueHeld = new AtomicReference<>();
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+    computeObserver.begin();
+
+    AtomicBoolean write = new AtomicBoolean(false);
+    AtomicReference<OffHeapValueHolder<V>> valueHeld = new AtomicReference<>();
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+
     BiFunction<K, OffHeapValueHolder<V>, OffHeapValueHolder<V>> computeFunction = (mappedKey, mappedValue) -> {
       long now = timeSource.getTimeMillis();
       V existingValue = null;
@@ -600,16 +610,18 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
   }
 
   private Store.ValueHolder<V> internalComputeIfAbsent(final K key, final Function<? super K, ? extends V> mappingFunction, boolean fault, final boolean delayedDeserialization) throws StoreAccessException {
+    checkKey(key);
+
     if (fault) {
       computeIfAbsentAndFaultObserver.begin();
     } else {
       computeIfAbsentObserver.begin();
     }
-    checkKey(key);
 
-    final AtomicBoolean write = new AtomicBoolean(false);
-    final AtomicReference<OffHeapValueHolder<V>> valueHeld = new AtomicReference<>();
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+    AtomicBoolean write = new AtomicBoolean(false);
+    AtomicReference<OffHeapValueHolder<V>> valueHeld = new AtomicReference<>();
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+
     BiFunction<K, OffHeapValueHolder<V>, OffHeapValueHolder<V>> computeFunction = (mappedKey, mappedValue) -> {
       long now = timeSource.getTimeMillis();
       if (mappedValue == null || mappedValue.isExpired(now, TimeUnit.MILLISECONDS)) {
@@ -681,7 +693,7 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public Map<K, ValueHolder<V>> bulkCompute(Set<? extends K> keys, final Function<Iterable<? extends Map.Entry<? extends K, ? extends V>>, Iterable<? extends Map.Entry<? extends K, ? extends V>>> remappingFunction, Supplier<Boolean> replaceEqual) throws StoreAccessException {
-    Map<K, ValueHolder<V>> result = new HashMap<>();
+    Map<K, ValueHolder<V>> result = new HashMap<>(keys.size());
     for (K key : keys) {
       checkKey(key);
       BiFunction<K, V, V> biFunction = (k, v) -> {
@@ -719,9 +731,10 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public Map<K, ValueHolder<V>> bulkComputeIfAbsent(Set<? extends K> keys, final Function<Iterable<? extends K>, Iterable<? extends Map.Entry<? extends K, ? extends V>>> mappingFunction) throws StoreAccessException {
-    Map<K, ValueHolder<V>> result = new HashMap<>();
+    Map<K, ValueHolder<V>> result = new HashMap<>(keys.size());
     for (K key : keys) {
       checkKey(key);
+
       Function<K, V> function = k -> {
         java.util.Iterator<? extends Map.Entry<? extends K, ? extends V>> iterator = mappingFunction.apply(Collections.singleton(k)).iterator();
         Map.Entry<? extends K, ? extends V> result1 = iterator.next();
@@ -740,12 +753,13 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public ValueHolder<V> getAndFault(K key) throws StoreAccessException {
-    getAndFaultObserver.begin();
     checkKey(key);
-    ValueHolder<V> mappedValue;
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+
+    getAndFaultObserver.begin();
+
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
     try {
-      mappedValue = backingMap().computeIfPresentAndPin(key, (mappedKey, mappedValue1) -> {
+      ValueHolder<V> mappedValue = backingMap().computeIfPresentAndPin(key, (mappedKey, mappedValue1) -> {
         if(mappedValue1.isExpired(timeSource.getTimeMillis(), TimeUnit.MILLISECONDS)) {
           onExpiration(mappedKey, mappedValue1, eventSink);
           return null;
@@ -761,11 +775,12 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
       } else {
         getAndFaultObserver.end(AuthoritativeTierOperationOutcomes.GetAndFaultOutcome.HIT);
       }
+      return mappedValue;
+
     } catch (RuntimeException re) {
       eventDispatcher.releaseEventSinkAfterFailure(eventSink, re);
       throw handleException(re);
     }
-    return mappedValue;
   }
 
   @Override
@@ -775,9 +790,11 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
 
   @Override
   public boolean flush(K key, final ValueHolder<V> valueFlushed) {
-    flushObserver.begin();
     checkKey(key);
-    final StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
+
+    flushObserver.begin();
+
+    StoreEventSink<K, V> eventSink = eventDispatcher.eventSink();
 
     try {
       boolean result = backingMap().computeIfPinned(key, (k, valuePresent) -> {
@@ -819,7 +836,8 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
   @Override
   public void invalidate(final K key) throws StoreAccessException {
     invalidateObserver.begin();
-    final AtomicBoolean removed = new AtomicBoolean(false);
+
+    AtomicBoolean removed = new AtomicBoolean(false);
     try {
       backingMap().computeIfPresent(key, (k, present) -> {
         removed.set(true);
@@ -839,6 +857,7 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
   @Override
   public void invalidateAll() throws StoreAccessException {
     invalidateAllObserver.begin();
+
     StoreAccessException exception = null;
     long errorCount = 0;
     for (K k : backingMap().keySet()) {
@@ -882,8 +901,9 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
    */
   @Override
   public ValueHolder<V> getAndRemove(final K key) throws StoreAccessException {
-    getAndRemoveObserver.begin();
     checkKey(key);
+
+    getAndRemoveObserver.begin();
 
     final AtomicReference<ValueHolder<V>> valueHolderAtomicReference = new AtomicReference<>();
     BiFunction<K, OffHeapValueHolder<V>, OffHeapValueHolder<V>> computeFunction = (mappedKey, mappedValue) -> {
@@ -916,6 +936,7 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
   @Override
   public ValueHolder<V> installMapping(final K key, final Function<K, ValueHolder<V>> source) throws StoreAccessException {
     installMappingObserver.begin();
+
     BiFunction<K, OffHeapValueHolder<V>, OffHeapValueHolder<V>> computeFunction = (k, offHeapValueHolder) -> {
       if (offHeapValueHolder != null) {
         throw new AssertionError();
@@ -1053,21 +1074,11 @@ public abstract class AbstractOffHeapStore<K, V> implements AuthoritativeTier<K,
   }
 
   private void checkKey(K keyObject) {
-    if (keyObject == null) {
-      throw new NullPointerException();
-    }
-    if (!keyType.isAssignableFrom(keyObject.getClass())) {
-      throw new ClassCastException("Invalid key type, expected : " + keyType.getName() + " but was : " + keyObject.getClass().getName());
-    }
+    CheckUtil.checkType(keyObject, keyType);
   }
 
   private void checkValue(V valueObject) {
-    if (valueObject == null) {
-      throw new NullPointerException();
-    }
-    if (!valueType.isAssignableFrom(valueObject.getClass())) {
-      throw new ClassCastException("Invalid value type, expected : " + valueType.getName() + " but was : " + valueObject.getClass().getName());
-    }
+    CheckUtil.checkType(valueObject, valueType);
   }
 
   private void onExpirationInCachingTier(ValueHolder<V> mappedValue, K key) {
