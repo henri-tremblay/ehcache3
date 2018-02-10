@@ -49,10 +49,12 @@ import org.ehcache.internal.tier.AuthoritativeTierSPITest;
 import org.ehcache.spi.service.Service;
 import org.ehcache.spi.service.ServiceConfiguration;
 import org.ehcache.spi.service.ServiceProvider;
+import org.junit.Ignore;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Test;
 import org.terracotta.connection.Connection;
 import org.terracotta.testing.rules.Cluster;
 
@@ -114,6 +116,7 @@ public class ClusteredStoreSPITest extends AuthoritativeTierSPITest<String, Stri
     ClusteringService clusteringService = new ClusteringServiceFactory()
       .create(clusteringServiceConfiguration);
 
+    @SuppressWarnings("unchecked")
     ServiceProvider<Service> serviceLocator = mock(ServiceProvider.class);
     when(serviceLocator.getService(ClusteringService.class)).thenReturn(clusteringService);
 
@@ -153,7 +156,7 @@ public class ClusteredStoreSPITest extends AuthoritativeTierSPITest<String, Stri
           .with(resourcePool)
           .build();
 
-        Store.Configuration config = new StoreConfigurationImpl(
+        Store.Configuration<String, String> config = new StoreConfigurationImpl<>(
           getKeyType(),
           getValueType(),
           evictionAdvisor,
@@ -229,6 +232,11 @@ public class ClusteredStoreSPITest extends AuthoritativeTierSPITest<String, Stri
       @Override
       public void close(final Store<String, String> store) {
         provider.releaseStore(store);
+        try {
+          clusteringService.destroy(CACHE_IDENTIFIER);
+        } catch (CachePersistenceException e) {
+          throw new RuntimeException(e);
+        }
       }
     };
   }
@@ -243,4 +251,111 @@ public class ClusteredStoreSPITest extends AuthoritativeTierSPITest<String, Stri
     return getAuthoritativeTierFactory();
   }
 
+  // All the following methods are not yet implemented on a clustered store. So we ignore these tests until,
+  // one day, the functionality is implemented
+
+  @Ignore("pinning is not supported on clustered store")
+  @Test
+  @Override
+  public void testGetAndFault() throws Exception {
+    super.testGetAndFault();
+  }
+
+  @Ignore("computing is not supported on clustered store")
+  @Test
+  @Override
+  public void testComputeIfAbsentAndFault() throws Exception {
+    super.testComputeIfAbsentAndFault();
+  }
+
+  @Ignore("computing is not supported on clustered store")
+  @Test
+  @Override
+  public void testCompute() throws Exception {
+    super.testCompute();
+  }
+
+  @Ignore("computing is not supported on clustered store")
+  @Test
+  @Override
+  public void testComputeIfAbsent() throws Exception {
+    super.testComputeIfAbsent();
+  }
+
+  @Ignore("iteration not supported on clustered store")
+  @Test
+  @Override
+  public void testIterator() throws Exception {
+    super.testIterator();
+  }
+
+  @Ignore("iteration not supported on clustered store")
+  @Test
+  @Override
+  public void testIteratorHasNext() throws Exception {
+    super.testIteratorHasNext();
+  }
+
+  @Ignore("iteration not supported on clustered store")
+  @Test
+  @Override
+  public void testIteratorNext() throws Exception {
+    super.testIteratorNext();
+  }
+
+  @Ignore("bulk compute only support a specific function on clustered store")
+  @Test
+  @Override
+  public void testBulkCompute() throws Exception {
+    super.testBulkCompute();
+  }
+
+  @Ignore("bulk compute only support a specific function on clustered store")
+  @Test
+  @Override
+  public void testBulkComputeIfAbsent() throws Exception {
+    super.testBulkComputeIfAbsent();
+  }
+
+  @Ignore("events not supported on clustered store")
+  @Test
+  @Override
+  public void testStoreEvictionEventListener() throws Exception {
+    super.testStoreEvictionEventListener();
+  }
+
+  @Ignore("events not supported on clustered store")
+  @Test
+  @Override
+  public void testStoreExpiryEventListener() throws Exception {
+    super.testStoreExpiryEventListener();
+  }
+
+  @Ignore("events not supported on clustered store")
+  @Test
+  @Override
+  public void testStoreCreationEventListener() throws Exception {
+    super.testStoreCreationEventListener();
+  }
+
+  @Ignore("events not supported on clustered store")
+  @Test
+  @Override
+  public void testStoreUpdateEventListener() throws Exception {
+    super.testStoreUpdateEventListener();
+  }
+
+  @Ignore("events not supported on clustered store")
+  @Test
+  @Override
+  public void testStoreRemovalEventListener() throws Exception {
+    super.testStoreRemovalEventListener();
+  }
+
+  @Ignore("flushing not implemented on clustered store")
+  @Test
+  @Override
+  public void testFlush() throws Exception {
+    super.testFlush();
+  }
 }

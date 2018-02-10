@@ -208,7 +208,12 @@ public class StorePutTest<K, V> extends SPIStoreTester<K, V> {
     K key = factory.createKey(42L);
     try {
       Store.PutStatus putStatus = kvStore.put(key, factory.createValue(42L));
-      assertThat(putStatus, is(Store.PutStatus.NOOP));
+
+      // A little hack that will be solved later by establishing characteristics to a store
+      Store.PutStatus expectedStatus = kvStore.getClass().getSimpleName().equals("ClusteredStore") ?
+        Store.PutStatus.PUT : Store.PutStatus.NOOP;
+
+      assertThat(putStatus, is(expectedStatus));
       assertThat(kvStore.get(key), nullValue());
     } catch (StoreAccessException e) {
       throw new LegalSPITesterException("Warning, an exception is thrown due to the SPI test");
