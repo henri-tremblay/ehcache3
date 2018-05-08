@@ -211,7 +211,12 @@ public class OnHeapStore<K, V> implements Store<K,V>, HigherCachingTier<K, V> {
 
   private static final Supplier<Boolean> REPLACE_EQUALS_TRUE = () -> Boolean.TRUE;
 
+  public OnHeapStore(Configuration<K, V> config, TimeSource timeSource, Copier<K> keyCopier, Copier<V> valueCopier, SizeOfEngine sizeOfEngine, StoreEventDispatcher<K, V> eventDispatcher) {
+    this(config, timeSource, keyCopier, valueCopier, sizeOfEngine, eventDispatcher, new NonBlockingHashMap<>());
+  }
+
   public OnHeapStore(Configuration<K, V> config, TimeSource timeSource, Copier<K> keyCopier, Copier<V> valueCopier, SizeOfEngine sizeOfEngine, StoreEventDispatcher<K, V> eventDispatcher, EvictingConcurrentMap<?, ?> backingMap) {
+    System.out.println("Map: " + backingMap.getClass());
     Objects.requireNonNull(keyCopier, "keyCopier must not be null");
 
     this.valueCopier = Objects.requireNonNull(valueCopier, "valueCopier must not be null");
