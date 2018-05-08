@@ -153,7 +153,7 @@ public class ByteAccountingTest {
       public int getDispatcherConcurrency() {
         return 0;
       }
-    }, timeSource, new DefaultSizeOfEngine(Long.MAX_VALUE, Long.MAX_VALUE), new TestStoreEventDispatcher<>());
+    }, timeSource, new DefaultSizeOfEngine(Long.MAX_VALUE, Long.MAX_VALUE), new TestStoreEventDispatcher<>(), backingMap);
   }
 
   @Test
@@ -544,8 +544,8 @@ public class ByteAccountingTest {
 
     @SuppressWarnings("unchecked")
     OnHeapStoreForTests(final Configuration<K, V> config, final TimeSource timeSource,
-                        final SizeOfEngine engine, StoreEventDispatcher<K, V> eventDispatcher) {
-      super(config, timeSource, IdentityCopier.identityCopier(), IdentityCopier.identityCopier(), engine, eventDispatcher);
+                        final SizeOfEngine engine, StoreEventDispatcher<K, V> eventDispatcher, EvictingConcurrentMap<?, ?> backingMap) {
+      super(config, timeSource, IdentityCopier.identityCopier(), IdentityCopier.identityCopier(), engine, eventDispatcher, backingMap);
     }
 
     long getCurrentUsageInBytes() {

@@ -207,6 +207,10 @@ public class OnHeapStore<K, V> extends BaseStore<K, V> implements HigherCachingT
 
   private static final Supplier<Boolean> REPLACE_EQUALS_TRUE = () -> Boolean.TRUE;
 
+  public OnHeapStore(Configuration<K, V> config, TimeSource timeSource, Copier<K> keyCopier, Copier<V> valueCopier, SizeOfEngine sizeOfEngine, StoreEventDispatcher<K, V> eventDispatcher) {
+    this(config, timeSource, keyCopier, valueCopier, sizeOfEngine, eventDispatcher, new NonBlockingHashMap<>());
+  }
+
   public OnHeapStore(Configuration<K, V> config, TimeSource timeSource, Copier<K> keyCopier, Copier<V> valueCopier, SizeOfEngine sizeOfEngine, StoreEventDispatcher<K, V> eventDispatcher, EvictingConcurrentMap<?, ?> backingMap) {
     this(config, timeSource, keyCopier, valueCopier, sizeOfEngine, eventDispatcher, ConcurrentHashMap::new);
   }

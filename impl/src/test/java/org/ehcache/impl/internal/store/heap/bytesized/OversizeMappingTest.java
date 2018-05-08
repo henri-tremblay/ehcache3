@@ -22,7 +22,10 @@ import org.ehcache.config.ResourcePools;
 import org.ehcache.config.builders.ExpiryPolicyBuilder;
 import org.ehcache.config.units.MemoryUnit;
 import org.ehcache.expiry.ExpiryPolicy;
+import org.ehcache.impl.internal.concurrent.ConcurrentHashMap;
+import org.ehcache.impl.internal.concurrent.EvictingConcurrentMap;
 import org.ehcache.impl.internal.events.TestStoreEventDispatcher;
+import org.ehcache.impl.internal.jctools.NonBlockingHashMap;
 import org.ehcache.impl.internal.sizeof.DefaultSizeOfEngine;
 import org.ehcache.impl.internal.store.heap.OnHeapStore;
 import org.ehcache.impl.internal.store.heap.bytesized.ByteAccountingTest.OnHeapStoreForTests;
@@ -31,6 +34,8 @@ import org.ehcache.core.spi.time.TimeSource;
 import org.ehcache.core.spi.store.Store;
 import org.ehcache.spi.serialization.Serializer;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import static org.ehcache.config.builders.ResourcePoolsBuilder.newResourcePoolsBuilder;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -41,11 +46,20 @@ import static org.hamcrest.Matchers.nullValue;
  * @author Abhilash
  *
  */
+@RunWith(Parameterized.class)
 public class OversizeMappingTest {
 
   private static final String KEY = "key";
   private static final String VALUE = "value";
   private static final String OVER_SIZED_VALUE = new String(new byte[1000]);
+
+  @Parameterized.Parameters(name = "backingMap={0}")
+  public static EvictingConcurrentMap<?, ?>[] data() {
+    return new EvictingConcurrentMap<?, ?>[] { new ConcurrentHashMap(), new NonBlockingHashMap() };
+  }
+
+  @Parameterized.Parameter
+  public EvictingConcurrentMap<?, ?> backingMap;
 
   <K, V> OnHeapStoreForTests<K, V> newStore() {
     return newStore(SystemTimeSource.INSTANCE, ExpiryPolicyBuilder.noExpiration(), Eviction.noAdvice(), 100);
@@ -101,7 +115,7 @@ public class OversizeMappingTest {
       public int getDispatcherConcurrency() {
         return 0;
       }
-    }, timeSource, new DefaultSizeOfEngine(Long.MAX_VALUE, 1000), new TestStoreEventDispatcher<>());
+    }, timeSource, new DefaultSizeOfEngine(Long.MAX_VALUE, 1000), new TestStoreEventDispatcher<>(), backingMap);
   }
 
   private static void assertNullMapping(OnHeapStore<String, String> store) throws Exception {
