@@ -90,6 +90,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -329,38 +330,10 @@ public class OnHeapStore<K, V> extends BaseStore<K, V> implements HigherCachingT
     AtomicReference<StoreOperationOutcomes.PutOutcome> statOutcome = new AtomicReference<>(StoreOperationOutcomes.PutOutcome.NOOP);
     StoreEventSink<K, V> eventSink = storeEventDispatcher.eventSink();
 
+    AtomicLong previousDelta = new AtomicLong(0);
+
     try {
-      map.compute(key, (mappedKey, mappedValue) -> {
-
-        long delta = 0;
-
-        if (mappedValue != null && mappedValue.isExpired(now, TimeUnit.MILLISECONDS)) {
-          delta -= mappedValue.size();
-          mappedValue = null;
-        }
-
-        OnHeapValueHolder<V> newValue;
-
-        if (mappedValue == null) {
-          newValue = newCreateValueHolder(key, value, now, eventSink);
-          if (newValue != null) {
-            delta += newValue.size();
-            statOutcome.set(StoreOperationOutcomes.PutOutcome.PUT);
-          }
-        } else {
-          newValue = newUpdateValueHolder(key, mappedValue, value, now, eventSink);
-          if (newValue != null) {
-            delta += newValue.size() - mappedValue.size();
-          } else {
-            delta -= mappedValue.size();
-          }
-          statOutcome.set(StoreOperationOutcomes.PutOutcome.PUT);
-        }
-
-        updateUsageInBytesIfRequired(delta);
-
-        return newValue;
-      });
+      map.compute(key, (mappedKey, mappedValue) -> putRemappingFunction(key, value, mappedValue, now, statOutcome, eventSink, previousDelta));
       storeEventDispatcher.releaseEventSink(eventSink);
 
       enforceCapacity();
@@ -380,6 +353,50 @@ public class OnHeapStore<K, V> extends BaseStore<K, V> implements HigherCachingT
       putObserver.end(StoreOperationOutcomes.PutOutcome.FAILURE);
       throw handleException(re);
     }
+  }
+
+  private OnHeapValueHolder<V> putRemappingFunction(K key, V value, OnHeapValueHolder<V> oldValue, long now, AtomicReference<StoreOperationOutcomes.PutOutcome> statOutcome, StoreEventSink<K, V> eventSink, AtomicLong previousDelta) {
+    // Reset in case it's called twice by the underlying map
+    storeEventDispatcher.reset(eventSink);
+
+    // this is to rollback a delta that was applied in a previous call to putRemappingFunction by the underlying map
+    long delta = -previousDelta.get();
+
+    if (oldValue != null && oldValue.isExpired(now, TimeUnit.MILLISECONDS)) {
+      delta = -oldValue.size();
+      oldValue = null;
+    }
+
+    OnHeapValueHolder<V> newValue;
+
+    StoreOperationOutcomes.PutOutcome outcome;
+
+    if (oldValue == null) {
+      newValue = newCreateValueHolder(key, value, now, eventSink);
+      if (newValue != null) {
+        delta += newValue.size();
+        outcome = StoreOperationOutcomes.PutOutcome.PUT;
+      } else {
+        outcome = StoreOperationOutcomes.PutOutcome.NOOP;
+      }
+    } else {
+      newValue = newUpdateValueHolder(key, oldValue, value, now, eventSink);
+      if (newValue != null) {
+        delta += newValue.size() - oldValue.size();
+      } else {
+        delta -= oldValue.size();
+      }
+      outcome = StoreOperationOutcomes.PutOutcome.PUT;
+    }
+
+    updateUsageInBytesIfRequired(delta);
+
+    // Keep the delta in case we need to rollback
+    previousDelta.set(delta);
+
+    statOutcome.set(outcome);
+
+    return newValue;
   }
 
   @Override
