@@ -118,29 +118,29 @@ public abstract class EhcacheBase<K, V> implements InternalCache<K, V> {
    */
   @Override
   public V get(K key) {
-    getObserver.begin();
+//    getObserver.begin();
     try {
-      statusTransitioner.checkAvailable();
-      checkNonNull(key);
+//      statusTransitioner.checkAvailable();
+//      checkNonNull(key);
 
       try {
         Store.ValueHolder<V> valueHolder = doGet(key);
 
         // Check for expiry first
         if (valueHolder == null) {
-          getObserver.end(GetOutcome.MISS);
+//          getObserver.end(GetOutcome.MISS);
           return null;
         } else {
-          getObserver.end(GetOutcome.HIT);
+//          getObserver.end(GetOutcome.HIT);
           return valueHolder.get();
         }
       } catch (StoreAccessException e) {
         V value = resilienceStrategy.getFailure(key, e);
-        getObserver.end(GetOutcome.FAILURE);
+//        getObserver.end(GetOutcome.FAILURE);
         return value;
       }
     } catch (Throwable e) {
-      getObserver.end(GetOutcome.FAILURE);
+//      getObserver.end(GetOutcome.FAILURE);
       throw e;
     }
   }

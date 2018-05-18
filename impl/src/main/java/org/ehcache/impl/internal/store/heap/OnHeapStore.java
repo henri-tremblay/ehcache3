@@ -32,7 +32,6 @@ import org.ehcache.impl.internal.util.CheckerUtil;
 import org.ehcache.spi.resilience.StoreAccessException;
 import org.ehcache.core.spi.store.heap.LimitExceededException;
 import org.ehcache.expiry.ExpiryPolicy;
-import org.ehcache.impl.config.loaderwriter.DefaultCacheLoaderWriterConfiguration;
 import org.ehcache.impl.copy.IdentityCopier;
 import org.ehcache.impl.internal.concurrent.ConcurrentHashMap;
 import org.ehcache.impl.copy.SerializingCopier;
@@ -282,20 +281,20 @@ public class OnHeapStore<K, V> implements Store<K,V>, HigherCachingTier<K, V> {
 
   @Override
   public ValueHolder<V> get(K key) throws StoreAccessException {
-    checkKey(key);
+//    checkKey(key);
 
-    getObserver.begin();
+//    getObserver.begin();
     try {
       OnHeapValueHolder<V> mapping = getQuiet(key);
 
       if (mapping == null) {
-        getObserver.end(StoreOperationOutcomes.GetOutcome.MISS);
+//        getObserver.end(StoreOperationOutcomes.GetOutcome.MISS);
         return null;
       }
 
-      setAccessTimeAndExpiryThenReturnMappingOutsideLock(key, mapping, timeSource.getTimeMillis());
+//      setAccessTimeAndExpiryThenReturnMappingOutsideLock(key, mapping, timeSource.getTimeMillis());
 
-      getObserver.end(StoreOperationOutcomes.GetOutcome.HIT);
+//      getObserver.end(StoreOperationOutcomes.GetOutcome.HIT);
       return mapping;
     } catch (RuntimeException re) {
       throw handleException(re);
@@ -309,10 +308,10 @@ public class OnHeapStore<K, V> implements Store<K,V>, HigherCachingTier<K, V> {
         return null;
       }
 
-      if (mapping.isExpired(timeSource.getTimeMillis(), TimeUnit.MILLISECONDS)) {
-        expireMappingUnderLock(key, mapping);
-        return null;
-      }
+//      if (mapping.isExpired(timeSource.getTimeMillis(), TimeUnit.MILLISECONDS)) {
+//        expireMappingUnderLock(key, mapping);
+//        return null;
+//      }
       return mapping;
     } catch (RuntimeException re) {
       throw handleException(re);
