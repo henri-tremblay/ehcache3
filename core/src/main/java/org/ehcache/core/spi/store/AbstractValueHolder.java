@@ -18,17 +18,41 @@ package org.ehcache.core.spi.store;
 
 import org.ehcache.core.config.ExpiryUtils;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import static java.lang.String.format;
+import static java.lang.invoke.MethodHandles.dropArguments;
+import static java.lang.invoke.MethodType.methodType;
 import static org.ehcache.core.config.ExpiryUtils.isExpiryDurationInfinite;
 
 /**
  * @author Ludovic Orban
  */
 public abstract class AbstractValueHolder<V> implements Store.ValueHolder<V> {
+
+  private static final MethodHandle accessedGuard;
+
+  static {
+    MethodHandles.Lookup lookup = MethodHandles.lookup();
+    try {
+      MethodHandle accessedWithExpiration = lookup.findSpecial(AbstractValueHolder.class, "accessedWithExpiration", methodType(void.class, long.class, Duration.class), AbstractValueHolder.class);
+      MethodHandle accessedWithoutExpiration = lookup.findSpecial(AbstractValueHolder.class, "accessedWithoutExpiration", methodType(void.class, long.class, Duration.class), AbstractValueHolder.class);
+      MethodHandle isNoExpiry = lookup.findSpecial(AbstractValueHolder.class, "isNoExpiry", methodType(boolean.class), AbstractValueHolder.class);
+
+      accessedGuard = MethodHandles.guardWithTest(
+        dropArguments(isNoExpiry, 0),
+        accessedWithoutExpiration,
+        accessedWithExpiration);
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException(e);
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   private static final AtomicLongFieldUpdater<AbstractValueHolder> HITS_UPDATER = AtomicLongFieldUpdater.newUpdater(AbstractValueHolder.class, "hits");
   private final long id;
@@ -54,6 +78,10 @@ public abstract class AbstractValueHolder<V> implements Store.ValueHolder<V> {
   }
 
   protected abstract TimeUnit nativeTimeUnit();
+
+  private boolean isNoExpiry() {
+    return expirationTime == NO_EXPIRE;
+  }
 
   @Override
   public long creationTime(TimeUnit unit) {
@@ -83,17 +111,42 @@ public abstract class AbstractValueHolder<V> implements Store.ValueHolder<V> {
   }
 
   public void accessed(long now, Duration expiration) {
-    final TimeUnit timeUnit = nativeTimeUnit();
+    try {
+      accessedGuard.invokeExact(this, now, expiration);
+    } catch (Throwable throwable) {
+      throw new RuntimeException(throwable);
+    }
+//    if (expirationTime == NO_EXPIRE) {
+//      accessedWithoutExpiration(now);
+//    } else {
+//      accessedWithExpiration(now, expiration);
+//    }
+    HITS_UPDATER.getAndIncrement(this);
+  }
+
+  private void accessedWithExpiration(long now, Duration expiration) {
     if (expiration != null) {
       if (isExpiryDurationInfinite(expiration)) {
         setExpirationTime(Store.ValueHolder.NO_EXPIRE, null);
       } else {
+        TimeUnit timeUnit = nativeTimeUnit();
         long newExpirationTime = ExpiryUtils.getExpirationMillis(now, expiration);
         setExpirationTime(newExpirationTime, timeUnit);
       }
     }
-    setLastAccessTime(now, timeUnit);
-    HITS_UPDATER.getAndIncrement(this);
+    accessedWithoutExpiration(now, expiration);
+  }
+
+  private void accessedWithoutExpiration(long now, Duration expiration) {
+    while (true) {
+      long current = this.lastAccessTime;
+      if (current >= now) {
+        break;
+      }
+      if (ACCESSTIME_UPDATER.compareAndSet(this, current, now)) {
+        break;
+      }
+    }
   }
 
   @Override

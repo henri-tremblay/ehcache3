@@ -38,6 +38,7 @@ public class StoreConfigurationImpl<K, V> implements Store.Configuration<K, V> {
   private final Serializer<K> keySerializer;
   private final Serializer<V> valueSerializer;
   private final int dispatcherConcurrency;
+  private final boolean enableStatistics;
 
   /**
    * Creates a new {@code StoreConfigurationImpl} based on the provided parameters.
@@ -81,6 +82,8 @@ public class StoreConfigurationImpl<K, V> implements Store.Configuration<K, V> {
     this.keySerializer = keySerializer;
     this.valueSerializer = valueSerializer;
     this.dispatcherConcurrency = dispatcherConcurrency;
+    // No need to keep statistics dedicated to a tier if we only have one tier. They will be the same as the cache statistics in that case.
+    this.enableStatistics = resourcePools.getResourceTypeSet().size() > 1;
   }
 
   /**
@@ -154,4 +157,13 @@ public class StoreConfigurationImpl<K, V> implements Store.Configuration<K, V> {
   public int getDispatcherConcurrency() {
     return dispatcherConcurrency;
   }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean isStatisticsEnabled() {
+    return enableStatistics;
+  }
+
 }

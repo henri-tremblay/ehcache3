@@ -27,6 +27,7 @@ import org.ehcache.core.InternalCache;
 import org.ehcache.event.CacheEvent;
 import org.ehcache.event.CacheEventListener;
 import org.ehcache.event.EventType;
+import org.ehcache.impl.config.store.common.StoreStatisticsConfiguration;
 import org.ehcache.impl.internal.TimeSourceConfiguration;
 import org.ehcache.internal.TestTimeSource;
 import org.ehcache.spi.loaderwriter.CacheLoaderWriter;
@@ -93,6 +94,7 @@ public class DefaultCacheStatisticsTest {
         .withLoaderWriter(loaderWriter)
         .withExpiry(ExpiryPolicyBuilder.timeToLiveExpiration(Duration.ofMillis(TIME_TO_EXPIRATION)))
         .add(cacheEventListenerConfiguration)
+        .add(new StoreStatisticsConfiguration(true))
         .build();
 
     cacheManager = CacheManagerBuilder.newCacheManagerBuilder()

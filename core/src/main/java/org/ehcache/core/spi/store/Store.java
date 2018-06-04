@@ -629,6 +629,13 @@ public interface Store<K, V> extends ConfigurationChangeSupport {
      * The concurrency level of the dispatcher that processes events
      */
     int getDispatcherConcurrency();
+
+    /**
+     * If the statistics are enabled for this store. By default, they are enabled when more than one tier is configured.
+     */
+    default boolean isStatisticsEnabled() {
+      return getResourcePools().getResourceTypeSet().size() > 1;
+    }
   }
 
   /**
