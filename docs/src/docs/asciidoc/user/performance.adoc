@@ -1,0 +1,90 @@
+---
+---
+= Performance Tuning
+ifndef::sourcedir35[]
+include::common.adoc[]
+endif::sourcedir35[]
+
+ifdef::notBuildingForSite[]
+include::menu.adoc[]
+endif::notBuildingForSite[]
+
+== Introduction
+
+Ehcache is fast. Really fast.
+It was thought and made to be.
+For example, a straight `get(key)` from the cache should be under 500ns.
+That's fast and way sufficient for most purpose.
+
+Keep that in mind. Especially when comparing caching frameworks with a benchmark.
+If something looks 10% faster it actually means 50ns faster.
+Do you care that much about these 50ns to lose your precious time in benchmarking?
+
+That said, the way you configure Ehcache can have an impact on performance.
+This document is a work in progress.
+It will give you the performance impact of classical Ehcache configuration.
+It will also give you some advance tuning possibilities.
+
+== Stores
+
+== Byte Sizing
+
+== Copier
+
+== Loader-Writer
+
+== Expiration
+
+A cache with no expiration will always be faster.
+
+=== Time to Live
+
+If you need to set an expiration time, TTL will be the faster one.
+This is because the expiration time is calculated once when the entry is inserted in the cache.
+But it still requires an expiration check at access time.
+
+So you can expect a 2% drop in performance when using TTL. Not bad.
+
+=== Time to Idle
+
+TTI is slower.
+We need to recalculate the expiration time each time the entry is accessed.
+
+So you can expect a ....
+
+=== Custom
+
+In general, using a custom `ExpiryPolicy` will be the slowest.
+Ehcache uses intrinsics to handle other cases.
+When using a custom policy, you are on your own.
+
+== Allocation rate
+
+Ehcache won't allocate any object during a simple `get()`.
+However, keep in mind that your configuration might do so.
+
+For instance, let's say you define an expiry policy like this.
+
+[source,java,indent=0]
+----
+include::{sourcedir35}/integration-test/src/test/java/org/ehcache/docs/Performance.java[tag=expiryAllocation]
+----
+
+<1> Will instantiate a `Duration` every time an entry is accessed
+
+In this case, putting the `Duration` as a constant would solve the problem.
+
+== Time Source
+
+By default, Ehcache uses a `TimeSource` that will retrieve the system time at every call. It is fast but not super
+duper fast. But it is super duper accurate.
+
+You can trade accuracy for speed by using a `TickingTimeSource`. Please read the javadoc for details but the concept is
+that a timer will increase time instead of always retrieving system time.
+
+Switching to `TickingTimeSource`, even with a granularity of 1ms can improve the performance of a `get` of a high as 30%.
+
+The drawback is that a timer will continuously run.
+Also, time might drift from the real time a bit.
+Especially if the granularity or the systemUpdatePeriod is big.
+But in most cases, the drifting doesn't matter much.
